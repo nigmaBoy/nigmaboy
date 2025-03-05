@@ -1,4 +1,4 @@
--- Body Part Configuration
+
 local BodyPartConfig = {
     ["UpperTorso"] = {
         Offset = Vector3.new(0, 0, 0), -- No offset
@@ -42,4 +42,3 @@ local BodyPartConfig = {
     },
     -- Excluded parts: Head, LeftHand, RightHand, LeftFoot, RightFoot
 }
--- ===============================
