@@ -1,0 +1,45 @@
+-- Body Part Configuration
+local BodyPartConfig = {
+    ["UpperTorso"] = {
+        Offset = Vector3.new(0, 0, 0), -- No offset
+        Rotation = CFrame.Angles(0, 0, 0) -- No rotation
+    },
+    ["LowerTorso"] = {
+        Offset = Vector3.new(0, 0, 0), -- No offset
+        Rotation = CFrame.Angles(0, 0, 0) -- No rotation
+    },
+    ["LeftUpperArm"] = {
+        Offset = Vector3.new(0, 4.8, 1), -- Move the left arm to the left by 5 studs
+        Rotation = CFrame.Angles(0, 0, 0) -- No rotation
+    },
+    ["RightUpperArm"] = {
+        Offset = Vector3.new(0, 6.4, -1), -- Move the right arm to the right by 5 studs
+        Rotation = CFrame.Angles(0, 0, 0) -- No rotation
+    },
+    ["LeftLowerArm"] = {
+        Offset = Vector3.new(0, 6.6, 0.8), -- Move the left forearm to the left by 5 studs
+        Rotation = CFrame.Angles(-80, 0, 0) -- No rotation
+    },
+    ["RightLowerArm"] = {
+        Offset = Vector3.new(0, 4.6, -0.8), -- Move the right forearm to the right by 5 studs
+        Rotation = CFrame.Angles(80, 0, 0) -- No rotation
+    },
+    ["LeftUpperLeg"] = {
+        Offset = Vector3.new(0, 6.4, 0), -- Move the left thigh to the left by 5 studs
+        Rotation = CFrame.Angles(0, 0, 0) -- No rotation
+    },
+    ["RightUpperLeg"] = {
+        Offset = Vector3.new(0, 4.8, 0), -- Move the right thigh to the right by 5 studs
+        Rotation = CFrame.Angles(0, 0, 0) -- No rotation
+    },
+    ["LeftLowerLeg"] = {
+        Offset = Vector3.new(0, 5.6, 0.7), -- Move the left shin to the left by 5 studs
+        Rotation = CFrame.Angles(80, 0, 0) -- No rotation
+    },
+    ["RightLowerLeg"] = {
+        Offset = Vector3.new(0, 5.6, -0.7), -- Move the right shin to the right by 5 studs
+        Rotation = CFrame.Angles(-80, 0, 0) -- No rotation
+    },
+    -- Excluded parts: Head, LeftHand, RightHand, LeftFoot, RightFoot
+}
+-- ===============================
