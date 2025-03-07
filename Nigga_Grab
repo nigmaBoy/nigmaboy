@@ -1,0 +1,398 @@
+-- Variables
+local Grabbed = false
+local LocalPlayer = game:GetService("Players").LocalPlayer
+
+-- Height Offset (Adjust this value to change the grabbed player's height)
+local HeightOffset = 4 -- Default height (0 studs above/below)
+
+-- Body Part Configurations
+local GermanGrabBodyPartConfig = {
+    ["UpperTorso"] = { Offset = Vector3.new(0, 0, 0), Rotation = CFrame.Angles(0, 0, 0) },
+    ["LowerTorso"] = { Offset = Vector3.new(0, 0, 0), Rotation = CFrame.Angles(0, 0, 0) },
+    ["LeftUpperArm"] = { Offset = Vector3.new(0, 4.8, 1), Rotation = CFrame.Angles(0, 0, 0) },
+    ["RightUpperArm"] = { Offset = Vector3.new(0, 6.4, -1), Rotation = CFrame.Angles(0, 0, 0) },
+    ["LeftLowerArm"] = { Offset = Vector3.new(0, 6.6, 0.8), Rotation = CFrame.Angles(math.rad(-80), 0, 0) },
+    ["RightLowerArm"] = { Offset = Vector3.new(0, 4.6, -0.8), Rotation = CFrame.Angles(math.rad(80), 0, 0) },
+    ["LeftUpperLeg"] = { Offset = Vector3.new(0, 6.4, 0), Rotation = CFrame.Angles(0, 0, 0) },
+    ["RightUpperLeg"] = { Offset = Vector3.new(0, 4.8, 0), Rotation = CFrame.Angles(0, 0, 0) },
+    ["LeftLowerLeg"] = { Offset = Vector3.new(0, 5.6, 0.7), Rotation = CFrame.Angles(math.rad(80), 0, 0) },
+    ["RightLowerLeg"] = { Offset = Vector3.new(0, 5.6, -0.7), Rotation = CFrame.Angles(math.rad(-80), 0, 0) },
+}
+
+-- Test Tool Body Part Configuration (With Jerking Animation)
+local TestToolBodyPartConfig = {
+    ["UpperTorso"] = {
+        Offset = Vector3.new(-1, 0, -0.5),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["LowerTorso"] = {
+        Offset = Vector3.new(-1, -0.4, 4.5),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["LeftUpperArm"] = {
+        Offset = Vector3.new(-1, 0.3, 3.8),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["RightUpperArm"] = {
+        Offset = Vector3.new(-0.5, 0.3, 5.2),
+        Rotation = CFrame.Angles(0, 0, 0)
+    },
+    ["LeftLowerArm"] = {
+        Offset = Vector3.new(-1, -0.2, 3.8),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["RightLowerArm"] = {
+        Offset = Vector3.new(-0.5, -0.2, 5.2),
+        Rotation = CFrame.Angles(math.rad(35), 0, 0)
+    },
+    ["LeftUpperLeg"] = {
+        Offset = Vector3.new(-1, -1.3, 4),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["RightUpperLeg"] = {
+        Offset = Vector3.new(-1, -1.3, 5),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["LeftLowerLeg"] = {
+        Offset = Vector3.new(-1, -2.2, 4),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["RightLowerLeg"] = {
+        Offset = Vector3.new(-1, -2.2, 5),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["Head"] = {
+        Offset = Vector3.new(-1, 1.8, 4.5),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+}
+
+-- Jerk Off Tool Body Part Configuration (Duplicated from Test Tool)
+local JerkOffBodyPartConfig = {
+    ["UpperTorso"] = {
+        Offset = Vector3.new(-1, 0, -0.5),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["LowerTorso"] = {
+        Offset = Vector3.new(-1, -0.4, 4.5),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["LeftUpperArm"] = {
+        Offset = Vector3.new(-1, 0.3, 3.8),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["RightUpperArm"] = {
+        Offset = Vector3.new(-0.5, 0.3, 5.2),
+        Rotation = CFrame.Angles(0, 0, 0)
+    },
+    ["LeftLowerArm"] = {
+        Offset = Vector3.new(-1, -0.2, 3.8),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["RightLowerArm"] = {
+        Offset = Vector3.new(-0.5, -0.2, 5.2),
+        Rotation = CFrame.Angles(math.rad(35), 0, 0)
+    },
+    ["LeftUpperLeg"] = {
+        Offset = Vector3.new(-1, -1.3, 4),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["RightUpperLeg"] = {
+        Offset = Vector3.new(-1, -1.3, 5),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["LeftLowerLeg"] = {
+        Offset = Vector3.new(-1, -2.2, 4),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["RightLowerLeg"] = {
+        Offset = Vector3.new(-1, -2.2, 5),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["Head"] = {
+        Offset = Vector3.new(-1, 1.8, 4.5),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+}
+
+-- German Pose Body Part Configuration
+local GermanPoseBodyPartConfig = {
+    ["UpperTorso"] = {
+        Offset = Vector3.new(-1, 0, -0.5),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["LowerTorso"] = {
+        Offset = Vector3.new(-1, -0.6, 4.5),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["LeftUpperArm"] = {
+        Offset = Vector3.new(-1, 0.3, 3.8),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["RightUpperArm"] = {
+        Offset = Vector3.new(-0.7, 0.8, 5),
+        Rotation = CFrame.Angles(0, 0, math.rad(110))
+    },
+    ["LeftLowerArm"] = {
+        Offset = Vector3.new(-1, -0.2, 3.8),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["RightLowerArm"] = {
+        Offset = Vector3.new(0.1, 1.1, 5.2),
+        Rotation = CFrame.Angles(0, 0, math.rad(110))
+    },
+    ["LeftUpperLeg"] = {
+        Offset = Vector3.new(-1, -1.2, 4),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["RightUpperLeg"] = {
+        Offset = Vector3.new(-1, -1.2, 4.7),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["LeftLowerLeg"] = {
+        Offset = Vector3.new(-1, -2.1, 4),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["RightLowerLeg"] = {
+        Offset = Vector3.new(-1, -2.1, 4.7),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+    ["Head"] = {
+        Offset = Vector3.new(-1, 1.8, 4.5),
+        Rotation = CFrame.Angles(0, math.rad(-90), 0)
+    },
+}
+
+local PPGrabBodyPartConfig = {
+    ["UpperTorso"] = { Offset = Vector3.new(0, 5, 0), Rotation = CFrame.Angles(0, 0, 0) },
+    ["LowerTorso"] = { Offset = Vector3.new(0.7, -6.3, 0), Rotation = CFrame.Angles(0, math.rad(90), 0) },
+    ["LeftUpperArm"] = { Offset = Vector3.new(1, -6, 0), Rotation = CFrame.Angles(0, 0, math.rad(90)) },
+    ["RightUpperArm"] = { Offset = Vector3.new(1.9, -6, 0), Rotation = CFrame.Angles(0, 0, math.rad(90)) },
+    ["LeftLowerArm"] = { Offset = Vector3.new(2.8, -6, 0), Rotation = CFrame.Angles(0, 0, math.rad(90)) },
+    ["RightLowerArm"] = { Offset = Vector3.new(3.7, -6, 0), Rotation = CFrame.Angles(0, 0, math.rad(90)) },
+    ["LeftUpperLeg"] = { Offset = Vector3.new(4.5, -6, 0), Rotation = CFrame.Angles(0, 0, math.rad(90)) },
+    ["RightUpperLeg"] = { Offset = Vector3.new(5.4, -6, 0), Rotation = CFrame.Angles(0, 0, math.rad(90)) },
+    ["LeftLowerLeg"] = { Offset = Vector3.new(6.3, -6, 0), Rotation = CFrame.Angles(0, 0, math.rad(90)) },
+    ["RightLowerLeg"] = { Offset = Vector3.new(7.2, -6, 0), Rotation = CFrame.Angles(0, 0, math.rad(90)) },
+}
+
+-- Create Tools
+local GermanGrabTool = Instance.new("Tool", LocalPlayer.Backpack)
+GermanGrabTool.RequiresHandle = false
+GermanGrabTool.Name = "GermanGrab"
+
+local TestTool = Instance.new("Tool", LocalPlayer.Backpack)
+TestTool.RequiresHandle = false
+TestTool.Name = "TestTool"
+
+local JerkOffTool = Instance.new("Tool", LocalPlayer.Backpack)
+JerkOffTool.RequiresHandle = false
+JerkOffTool.Name = "JerkOff"
+
+local GermanPoseTool = Instance.new("Tool", LocalPlayer.Backpack)
+GermanPoseTool.RequiresHandle = false
+GermanPoseTool.Name = "GermanPose"
+
+local PPGrabTool = Instance.new("Tool", LocalPlayer.Backpack)
+PPGrabTool.RequiresHandle = false
+PPGrabTool.Name = "PPGrab"
+
+-- Function to lock the grabbed player
+local function LockPlayer(target, bodyPartConfig)
+    if target and target.Character then
+        local rootPart = target.Character:FindFirstChild("HumanoidRootPart")
+        if rootPart then
+            local heartbeatConnection
+            local jerking = false
+            local jerkTime = 0
+            local jerkSpeed = 20
+            local jerkAmount = 0.5
+
+            heartbeatConnection = game:GetService("RunService").Heartbeat:Connect(function(deltaTime)
+                -- Base position calculation
+                local targetPosition = LocalPlayer.Character.HumanoidRootPart.Position + 
+                    (LocalPlayer.Character.HumanoidRootPart.CFrame.RightVector * bodyPartConfig["UpperTorso"].Offset.X) + 
+                    (LocalPlayer.Character.HumanoidRootPart.CFrame.UpVector * bodyPartConfig["UpperTorso"].Offset.Y) + 
+                    (LocalPlayer.Character.HumanoidRootPart.CFrame.LookVector * bodyPartConfig["UpperTorso"].Offset.Z)
+
+                -- 90-degree rotation for all CFrame grabs
+                local rotationOffset = CFrame.Angles(0, math.rad(90), 0)
+                rootPart.CFrame = CFrame.new(targetPosition) 
+                    * LocalPlayer.Character.HumanoidRootPart.CFrame.Rotation 
+                    * rotationOffset
+
+                -- Apply body part offsets
+                for partName, config in pairs(bodyPartConfig) do
+                    local part = target.Character:FindFirstChild(partName)
+                    if part then
+                        part.CFrame = rootPart.CFrame:ToWorldSpace(CFrame.new(config.Offset) * config.Rotation)
+                    end
+                end
+
+                -- Smooth jerking animation (Test Tool and Jerk Off Tool only)
+                if bodyPartConfig == TestToolBodyPartConfig or bodyPartConfig == JerkOffBodyPartConfig then
+                    jerkTime += deltaTime * jerkSpeed
+                    local rightUpperArm = target.Character:FindFirstChild("RightUpperArm")
+                    local rightLowerArm = target.Character:FindFirstChild("RightLowerArm")
+                    if rightUpperArm and rightLowerArm then
+                        local jerkOffset = math.sin(jerkTime) * jerkAmount
+                        rightUpperArm.CFrame = rightUpperArm.CFrame * CFrame.new(jerkOffset, 0, 0)
+                        rightLowerArm.CFrame = rightLowerArm.CFrame * CFrame.new(jerkOffset, 0, 0)
+                    end
+                end
+            end)
+
+            Grabbed = true
+            target.Character.Humanoid.Died:Connect(function()
+                heartbeatConnection:Disconnect()
+                Grabbed = false
+            end)
+
+            game.Players.LocalPlayer.Character.BodyEffects.Grabbed:GetPropertyChangedSignal("Value"):Connect(function()
+                if game.Players.LocalPlayer.Character.BodyEffects.Grabbed.Value == nil then
+                    heartbeatConnection:Disconnect()
+                    Grabbed = false
+                end
+            end)
+        end
+    end
+end
+
+-- Tool Activations
+GermanGrabTool.Activated:Connect(function()
+    if Grabbed then
+        local target = game.Players.LocalPlayer.Character.BodyEffects.Grabbed.Value
+        LockPlayer(game.Players[tostring(target)], GermanGrabBodyPartConfig)
+    end
+end)
+
+TestTool.Activated:Connect(function()
+    if Grabbed then
+        local target = game.Players.LocalPlayer.Character.BodyEffects.Grabbed.Value
+        LockPlayer(game.Players[tostring(target)], TestToolBodyPartConfig)
+    end
+end)
+
+JerkOffTool.Activated:Connect(function()
+    if Grabbed then
+        local target = game.Players.LocalPlayer.Character.BodyEffects.Grabbed.Value
+        LockPlayer(game.Players[tostring(target)], JerkOffBodyPartConfig)
+    end
+end)
+
+GermanPoseTool.Activated:Connect(function()
+    if Grabbed then
+        local target = game.Players.LocalPlayer.Character.BodyEffects.Grabbed.Value
+        LockPlayer(game.Players[tostring(target)], GermanPoseBodyPartConfig)
+    end
+end)
+
+PPGrabTool.Activated:Connect(function()
+    if Grabbed then
+        local target = game.Players.LocalPlayer.Character.BodyEffects.Grabbed.Value
+        LockPlayer(game.Players[tostring(target)], PPGrabBodyPartConfig)
+    end
+end)
+
+-- Regular Grab Function (Remains unchanged)
+-- ... [Keep the RegularGrab and ActivateTool code unchanged from your original script]
+
+
+-- Function to make the grabbed player follow behind the LocalPlayer
+local function RegularGrab(target)
+    if target and target.Character then
+        local upperTorso = target.Character:FindFirstChild("UpperTorso")
+        if upperTorso then
+            -- Remove existing BodyPosition and BodyGyro if they exist
+            if upperTorso:FindFirstChild("BodyPosition") then
+                upperTorso:FindFirstChild("BodyPosition"):Destroy()
+            end
+            if upperTorso:FindFirstChild("BodyGyro") then
+                upperTorso:FindFirstChild("BodyGyro"):Destroy()
+            end
+
+            -- Create new BodyPosition and BodyGyro
+            local bodypos = Instance.new('BodyPosition', upperTorso)
+            bodypos.D = 60
+            bodypos.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+
+            local bodygyro = Instance.new('BodyGyro', upperTorso)
+            bodygyro.D = 50
+            bodygyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+
+            -- Bind to Heartbeat for continuous updates
+            local heartbeatConnection
+            heartbeatConnection = game:GetService('RunService').Heartbeat:Connect(function()
+                -- Calculate the target's position behind and at the specified height
+                local offset = Vector3.new(0, HeightOffset, -5) -- 5 studs behind, HeightOffset studs above/below
+                local targetPosition = LocalPlayer.Character.HumanoidRootPart.Position + 
+                    (LocalPlayer.Character.HumanoidRootPart.CFrame.LookVector * offset.Z) +
+                    (LocalPlayer.Character.HumanoidRootPart.CFrame.UpVector * offset.Y)
+
+                -- Update BodyPosition and BodyGyro
+                bodypos.Position = targetPosition
+                bodygyro.CFrame = CFrame.new(upperTorso.Position, LocalPlayer.Character.HumanoidRootPart.Position)
+            end)
+
+            -- Clean up on release
+            Grabbed = true
+            target.Character.Humanoid.Died:Connect(function()
+                heartbeatConnection:Disconnect()
+                Grabbed = false
+            end)
+        end
+    end
+end
+
+-- Activate Tool (Grab Tool)
+local ActivateTool = Instance.new("Tool", LocalPlayer.Backpack)
+ActivateTool.RequiresHandle = false
+ActivateTool.Name = "Activate"
+
+ActivateTool.Activated:Connect(function()
+    game:GetService("ReplicatedStorage").MainEvent:FireServer('Grabbing', true)
+    
+    repeat task.wait(0.1) 
+    until game.Players.LocalPlayer.Character.BodyEffects.Grabbed.Value ~= nil 
+    and game.Players.LocalPlayer.Character.BodyEffects.Grabbed.Value ~= ''
+    
+    if game.Players.LocalPlayer.Character.BodyEffects.Grabbed.Value ~= nil 
+    and game.Players.LocalPlayer.Character.BodyEffects.Grabbed.Value ~= '' then
+        local target = tostring(game.Players.LocalPlayer.Character.BodyEffects.Grabbed.Value)
+        Grabbed = true
+        
+        for _, part in pairs(game.Players[target].Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+
+        local grabbingConstraint = game.Players[target].Character:FindFirstChild('GRABBING_CONSTRAINT')
+        if grabbingConstraint and grabbingConstraint:FindFirstChild('H') then
+            grabbingConstraint.H.Length = 99e99
+        end
+        
+        for _, track in pairs(LocalPlayer.Character.Humanoid:GetPlayingAnimationTracks()) do
+            track:Stop()
+        end
+        
+        GrabMode = "Regular"
+        RegularGrab(game.Players[target])
+    else
+        Grabbed = false
+    end
+    
+    game.Players.LocalPlayer.Character.BodyEffects.Grabbed:GetPropertyChangedSignal('Value'):Connect(function()
+        if game.Players.LocalPlayer.Character.BodyEffects.Grabbed.Value == nil then
+            Grabbed = false
+            
+            if target and game.Players[target] and game.Players[target].Character then
+                for _, part in pairs(game.Players[target].Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = true
+                    end
+                end
+            end
+        end
+    end)
+end)
