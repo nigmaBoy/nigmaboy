@@ -1,5 +1,8 @@
---[[
+--[[-----------------------------------------------------------------------------------------
     MySexyGui - Enhanced GUI Library v0.3
+    By: Assistant (Based on User Request)
+    Date: 2025-04-12
+
     Features:
     - Draggable Window
     - Tabs with Content Switching
@@ -8,8 +11,10 @@
     - Keybind to Toggle Visibility
     - Elements: Button, Toggle
     - Enhanced Slider (Click/Drag Bar, Drag Nub, Value Display)
-    - Basic Theming
-]]
+    - Basic Theming Structure
+-------------------------------------------------------------------------------------------]]
+
+task.wait() -- Allow services to load if script runs very early
 
 -- Services
 local UserInputService = game:GetService("UserInputService")
@@ -21,14 +26,14 @@ local TextService = game:GetService("TextService")
 
 -- Main Library Table
 local MySexyGui = {}
-MySexyGui.Windows = {} -- Track created windows for keybinds
-MySexyGui.KeybindConnections = {} -- Store connections to disconnect later
+MySexyGui.Windows = {} -- Track created windows { [ScreenGui] = windowObject }
+MySexyGui.KeybindConnections = {} -- Store connections { [ScreenGui] = connection }
 
 -- Default Theme (Customizeable)
 MySexyGui.Theme = {
     Background = Color3.fromRGB(35, 35, 45),
     Primary = Color3.fromRGB(80, 120, 220), -- Accent color
-    Secondary = Color3.fromRGB(50, 50, 60), -- Slightly lighter background / Inactive tabs
+    Secondary = Color3.fromRGB(50, 50, 60), -- Slightly lighter background / Inactive tabs / Slider background
     Header = Color3.fromRGB(45, 45, 55),
     Outline = Color3.fromRGB(20, 20, 25),
     Text = Color3.fromRGB(230, 230, 230),
@@ -41,25 +46,26 @@ MySexyGui.Theme = {
     TitleFontSize = 16,
     CornerRadius = 4,
     ElementHeight = 30,
-    SliderBarHeight = 6, -- Visual bar height
-    SliderNubSize = 14, -- Nub height/width
+    SliderBarHeight = 6, -- Visual height of the slider track
+    SliderNubSize = 14, -- Diameter of the slider handle
     Padding = 5,
     TabHeight = 30,
-    TabButtonPadding = 10, -- Padding inside tab buttons
-    TabScrollStep = 75, -- Pixels to scroll tabs by
+    TabButtonPadding = 10, -- Horizontal padding inside tab buttons
+    TabScrollStep = 75, -- Pixels to scroll tabs by per click
 }
 
 -- Internal Helper Functions
 local function CreateElement(elementType, properties)
     local element = Instance.new(elementType)
     for prop, value in pairs(properties or {}) do
-        element[prop] = value
+        pcall(function() element[prop] = value end) -- Use pcall for safety
     end
     return element
 end
 
 -- Corrected ApplyCorner function
 local function ApplyCorner(guiObject, radius)
+    if not guiObject then return end
     local corner = guiObject:FindFirstChildWhichIsA("UICorner")
     if not corner then
         corner = Instance.new("UICorner")
@@ -70,7 +76,8 @@ local function ApplyCorner(guiObject, radius)
 end
 
 local function ApplyStroke(guiObject, color, thickness)
-     local stroke = guiObject:FindFirstChildWhichIsA("UIStroke")
+    if not guiObject then return end
+    local stroke = guiObject:FindFirstChildWhichIsA("UIStroke")
      if not stroke then
         stroke = Instance.new("UIStroke")
         stroke.Parent = guiObject
@@ -78,8 +85,53 @@ local function ApplyStroke(guiObject, color, thickness)
     stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     stroke.Color = color or MySexyGui.Theme.Outline
     stroke.Thickness = thickness or 1
-    stroke.Enabled = (thickness or 1) > 0 -- Enable only if thickness > 0
+    stroke.Enabled = (thickness or 1) > 0
     return stroke
+end
+
+-- Element Adding Function (Helper, defined once)
+local ElementFunctions = {}
+do
+    local elementIndex = 0 -- This counter will be reset conceptually for each tab instance later
+
+    function ElementFunctions:AddButton(opts)
+        opts=opts or{}; local t=opts.Text or"Button"; local cb=opts.Callback or function()print(t.." clicked")end; elementIndex=elementIndex+1
+        local b=CreateElement("TextButton",{Name=t.."_Button",Size=UDim2.new(1,-MySexyGui.Theme.Padding*2,0,MySexyGui.Theme.ElementHeight),Text=t,BackgroundColor3=MySexyGui.Theme.Primary,TextColor3=MySexyGui.Theme.Text,Font=MySexyGui.Theme.Font,TextSize=MySexyGui.Theme.FontSize,LayoutOrder=elementIndex,Parent=self.Page,AutoButtonColor=false})
+        ApplyCorner(b); b.MouseButton1Click:Connect(function()pcall(cb)end)
+        b.MouseEnter:Connect(function()b.BackgroundColor3=Color3.Lerp(MySexyGui.Theme.Primary,Color3.new(1,1,1),0.2)end)
+        b.MouseLeave:Connect(function()b.BackgroundColor3=MySexyGui.Theme.Primary end)
+        self.Elements[t]=b; return b
+    end
+
+    function ElementFunctions:AddToggle(opts)
+        opts=opts or{}; local t=opts.Text or"Toggle"; local d=opts.Default or false; local cb=opts.Callback or function(s)print(t.." state:"..tostring(s))end; elementIndex=elementIndex+1
+        local tf=CreateElement("Frame",{Name=t.."_TogFrm",Size=UDim2.new(1,-MySexyGui.Theme.Padding*2,0,MySexyGui.Theme.ElementHeight),BackgroundTransparency=1,LayoutOrder=elementIndex,Parent=self.Page})
+        local tl=CreateElement("TextLabel",{Name="Lbl",Size=UDim2.new(1,-60,1,0),Position=UDim2.new(0,MySexyGui.Theme.Padding,0,0),BackgroundTransparency=1,Font=MySexyGui.Theme.Font,TextSize=MySexyGui.Theme.FontSize,TextColor3=MySexyGui.Theme.Text,Text=t,TextXAlignment=Enum.TextXAlignment.Left,Parent=tf})
+        local sws=40;local sh=20;local sw=CreateElement("TextButton",{Name="Sw",Size=UDim2.new(0,sws,0,sh),Position=UDim2.new(1,-sws-MySexyGui.Theme.Padding,0.5,-sh/2),BackgroundColor3=MySexyGui.Theme.Secondary,Text="",Parent=tf,AutoButtonColor=false});ApplyCorner(sw)
+        local nbs=sh-4;local nb=CreateElement("Frame",{Name="Nb",Size=UDim2.new(0,nbs,0,nbs),Position=UDim2.new(0,2,0.5,-nbs/2),BackgroundColor3=MySexyGui.Theme.TextDisabled,BorderSizePixel=0,Parent=sw});ApplyCorner(nb)
+        local st=d; local function upd()local tc=st and MySexyGui.Theme.Primary or MySexyGui.Theme.Secondary;local tnc=st and MySexyGui.Theme.TextActive or MySexyGui.Theme.TextDisabled;local tnp=st and UDim2.new(1,-nbs-2,0.5,-nbs/2)or UDim2.new(0,2,0.5,-nbs/2);TweenService:Create(sw,TweenInfo.new(0.15),{BackgroundColor3=tc}):Play();TweenService:Create(nb,TweenInfo.new(0.15),{BackgroundColor3=tnc,Position=tnp}):Play()end
+        sw.MouseButton1Click:Connect(function()st=not st;upd();pcall(cb,st)end);upd()
+        local toggleObj = {Frame=tf,Set=function(ns)st=ns;upd()end,Get=function()return st end}; self.Elements[t]=toggleObj; return toggleObj
+    end
+
+    function ElementFunctions:AddSlider(opts)
+        opts=opts or{};local t=opts.Text or"Slider";local min=opts.Min or 0;local max=opts.Max or 100;local def=opts.Default or min;local inc=opts.Increment or 1;local sfx=opts.Suffix or"";local cb=opts.Callback or function(v)print(t.." value:"..v)end;elementIndex=elementIndex+1
+        local fh=MySexyGui.Theme.SliderBarHeight+MySexyGui.Theme.FontSize+MySexyGui.Theme.Padding
+        local sf=CreateElement("Frame",{Name=t.."_SldFrm",Size=UDim2.new(1,-MySexyGui.Theme.Padding*2,0,fh),BackgroundTransparency=1,LayoutOrder=elementIndex,Parent=self.Page})
+        local sl=CreateElement("TextLabel",{Name="Lbl",Size=UDim2.new(0.7,-MySexyGui.Theme.Padding,0,MySexyGui.Theme.FontSize),Position=UDim2.new(0,MySexyGui.Theme.Padding,0,0),BackgroundTransparency=1,Font=MySexyGui.Theme.Font,TextSize=MySexyGui.Theme.FontSize,TextColor3=MySexyGui.Theme.Text,Text=t,TextXAlignment=Enum.TextXAlignment.Left,Parent=sf})
+        local vl=CreateElement("TextLabel",{Name="ValLbl",Size=UDim2.new(0.3,-MySexyGui.Theme.Padding,0,MySexyGui.Theme.FontSize),Position=UDim2.new(0.7,MySexyGui.Theme.Padding,0,0),BackgroundTransparency=1,Font=MySexyGui.Theme.Font,TextSize=MySexyGui.Theme.FontSize,TextColor3=MySexyGui.Theme.TextDisabled,Text="",TextXAlignment=Enum.TextXAlignment.Right,Parent=sf})
+        local sb=CreateElement("Frame",{Name="Bar",Size=UDim2.new(1,-MySexyGui.Theme.Padding*2,0,MySexyGui.Theme.SliderBarHeight),Position=UDim2.new(0,MySexyGui.Theme.Padding,0,MySexyGui.Theme.FontSize+2),BackgroundColor3=MySexyGui.Theme.Secondary,BorderSizePixel=0,Parent=sf});ApplyCorner(sb)
+        local sfll=CreateElement("Frame",{Name="Fill",Size=UDim2.new(0,0,1,0),BackgroundColor3=MySexyGui.Theme.Primary,BorderSizePixel=0,Parent=sb});ApplyCorner(sfll)
+        local sn=CreateElement("Frame",{Name="Nub",Size=UDim2.new(0,MySexyGui.Theme.SliderNubSize,0,MySexyGui.Theme.SliderNubSize),Position=UDim2.new(0,-MySexyGui.Theme.SliderNubSize/2,0.5,-MySexyGui.Theme.SliderNubSize/2),BackgroundColor3=MySexyGui.Theme.TextActive,BorderSizePixel=0,ZIndex=sb.ZIndex+1,Parent=sb});ApplyCorner(sn,3)
+        local cv=def;local drg=false;local function rti(v)if inc==0 then return v end;local iv=1/inc;return math.floor(v*iv+0.5)/iv end
+        local decimalPlaces = 0; if inc > 0 and inc < 1 then decimalPlaces = math.max(0, string.len(tostring(inc):match("%.(%d*)") or "")) end
+        local function uv(v,fd)v=math.clamp(v,min,max);local p=(max==min)and 0 or((v-min)/(max-min));local rv=rti(v);local rp=(max==min)and 0 or((rv-min)/(max-min));local tf=UDim2.new(rp,0,1,0);local tn=UDim2.new(rp,-MySexyGui.Theme.SliderNubSize/2,0.5,-MySexyGui.Theme.SliderNubSize/2);local ti=TweenInfo.new(0.05);if fd then sfll.Size=tf;sn.Position=tn;else TweenService:Create(sfll,ti,{Size=tf}):Play();TweenService:Create(sn,ti,{Position=tn}):Play();end;vl.Text=string.format("%."..decimalPlaces.."f",rv)..sfx;cv=rv end
+        local function ufi(ip)local bsx=sb.AbsolutePosition.X;local bw=sb.AbsoluteSize.X;if bw<=0 then return end;local p=math.clamp((ip.X-bsx)/bw,0,1);local nv=min+p*(max-min);local rv=rti(nv);if rv~=cv then uv(rv,true);pcall(cb,cv)end end
+        local da=CreateElement("TextButton",{Name="DrgArea",Size=UDim2.new(1,0,2.5,0),Position=UDim2.new(0,0,0.5,-MySexyGui.Theme.SliderNubSize),BackgroundTransparency=1,Text="",ZIndex=sn.ZIndex+1,Parent=sb}) -- Increased height for easier drag
+        da.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drg=true;ufi(i.Position);local changedConn;changedConn=i.Changed:Connect(function()if i.UserInputState==Enum.UserInputState.End then drg=false;changedConn:Disconnect()end end)end end)
+        da.InputChanged:Connect(function(i)if(i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch)and drg then ufi(i.Position)end end);uv(cv)
+        local sliderObj={Frame=sf,Set=function(nv)uv(nv)end,Get=function()return cv end};self.Elements[t]=sliderObj;return sliderObj
+    end
 end
 
 -- Window Creation
@@ -88,185 +140,56 @@ function MySexyGui:CreateWindow(options)
     local windowTitle = options.Title or "MySexyGui Window"
     local width = options.Width or MySexyGui.Theme.WindowWidth
     local height = options.Height or MySexyGui.Theme.WindowHeight
-    local keybindCode = options.Keybind or Enum.KeyCode.RightShift -- Default keybind
+    local keybindCode = options.Keybind or Enum.KeyCode.RightShift
 
-    -- Main ScreenGui
-    local screenGui = CreateElement("ScreenGui", {
-        Name = "MySexyGui_" .. windowTitle:gsub("%s+", ""),
-        Parent = CoreGui,
-        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-        IgnoreGuiInset = true,
-        ResetOnSpawn = false,
-        Enabled = options.AutoShow == nil or options.AutoShow, -- Match window visibility
-    })
+    local screenGui = CreateElement("ScreenGui", { Name="MySexyGui_"..windowTitle:gsub("%s+",""), Parent=CoreGui, ZIndexBehavior=Enum.ZIndexBehavior.Sibling, IgnoreGuiInset=true, ResetOnSpawn=false, Enabled=options.AutoShow==nil or options.AutoShow })
+    local windowFrame = CreateElement("Frame", { Name="WindowFrame", Size=UDim2.new(0,width,0,height), Position=UDim2.new(0.5,-width/2,0.5,-height/2), BackgroundColor3=MySexyGui.Theme.Background, BorderSizePixel=0, ClipsDescendants=true, Parent=screenGui, Active=true, Visible=screenGui.Enabled }); ApplyCorner(windowFrame); ApplyStroke(windowFrame)
+    local topBar = CreateElement("Frame", { Name="TopBar", Size=UDim2.new(1,0,0,30), BackgroundColor3=MySexyGui.Theme.Header, BorderSizePixel=0, Parent=windowFrame })
+    CreateElement("Frame", { Name="TopBarCornerFix", Size=UDim2.new(1,0,0,MySexyGui.Theme.CornerRadius), Position=UDim2.new(0,0,1,-MySexyGui.Theme.CornerRadius), BackgroundColor3=MySexyGui.Theme.Header, BorderSizePixel=0, ZIndex=topBar.ZIndex-1, Parent=topBar })
+    CreateElement("TextLabel", { Name="Title", Size=UDim2.new(1,-40,1,0), Position=UDim2.new(0,10,0,0), BackgroundTransparency=1, Font=MySexyGui.Theme.Font, TextSize=MySexyGui.Theme.TitleFontSize, TextColor3=MySexyGui.Theme.Text, Text=windowTitle, TextXAlignment=Enum.TextXAlignment.Left, Parent=topBar })
+    local closeButton = CreateElement("TextButton", { Name="CloseButton", Size=UDim2.new(0,20,0,20), Position=UDim2.new(1,-25,0.5,-10), BackgroundColor3=Color3.fromRGB(200,50,50), Text="X", Font=MySexyGui.Theme.Font, TextSize=14, TextColor3=Color3.fromRGB(255,255,255), Parent=topBar }); ApplyCorner(closeButton,3)
 
-    -- Main Window Frame
-    local windowFrame = CreateElement("Frame", {
-        Name = "WindowFrame", Size = UDim2.new(0, width, 0, height),
-        Position = UDim2.new(0.5, -width / 2, 0.5, -height / 2),
-        BackgroundColor3 = MySexyGui.Theme.Background, BorderSizePixel = 0,
-        ClipsDescendants = true, Parent = screenGui, Active = true,
-        Visible = options.AutoShow == nil or options.AutoShow,
-    })
-    ApplyCorner(windowFrame)
-    ApplyStroke(windowFrame)
+    local TAB_AREA_PADDING=5; local SCROLL_BUTTON_WIDTH=20; local SETTINGS_TAB_WIDTH=80
+    local tabArea = CreateElement("Frame", { Name="TabArea", Size=UDim2.new(1,0,0,MySexyGui.Theme.TabHeight), Position=UDim2.new(0,0,0,topBar.Size.Y.Offset), BackgroundTransparency=1, Parent=windowFrame })
+    local leftScroll = CreateElement("TextButton", { Name="LeftScroll", Size=UDim2.new(0,SCROLL_BUTTON_WIDTH,1,0), Position=UDim2.new(0,TAB_AREA_PADDING,0,0), BackgroundColor3=MySexyGui.Theme.Secondary, Text="<", Font=MySexyGui.Theme.Font, TextSize=16, TextColor3=MySexyGui.Theme.Text, Visible=false, ZIndex=2, Parent=tabArea, AutoButtonColor=false }); ApplyCorner(leftScroll,3)
+    local rightScroll = CreateElement("TextButton", { Name="RightScroll", Size=UDim2.new(0,SCROLL_BUTTON_WIDTH,1,0), Position=UDim2.new(1,-TAB_AREA_PADDING*2-SCROLL_BUTTON_WIDTH-SETTINGS_TAB_WIDTH,0,0), BackgroundColor3=MySexyGui.Theme.Secondary, Text=">", Font=MySexyGui.Theme.Font, TextSize=16, TextColor3=MySexyGui.Theme.Text, Visible=false, ZIndex=2, Parent=tabArea, AutoButtonColor=false }); ApplyCorner(rightScroll,3)
+    local tabBar = CreateElement("ScrollingFrame", { Name="TabBar", Size=UDim2.new(1,-(TAB_AREA_PADDING*3+SCROLL_BUTTON_WIDTH*2+SETTINGS_TAB_WIDTH),1,0), Position=UDim2.new(0,TAB_AREA_PADDING*2+SCROLL_BUTTON_WIDTH,0,0), BackgroundTransparency=1, BorderSizePixel=0, ScrollingDirection=Enum.ScrollingDirection.X, CanvasSize=UDim2.new(0,0,0,0), ScrollBarThickness=0, Parent=tabArea })
+    local tabLayout = CreateElement("UIListLayout", { FillDirection=Enum.FillDirection.Horizontal, SortOrder=Enum.SortOrder.LayoutOrder, Padding=UDim.new(0,MySexyGui.Theme.Padding), VerticalAlignment=Enum.VerticalAlignment.Center, Parent=tabBar })
+    local settingsTabButton = CreateElement("TextButton", { Name="Settings_Button", Size=UDim2.new(0,SETTINGS_TAB_WIDTH,1,0), Text="Settings", Font=MySexyGui.Theme.Font, Position=UDim2.new(1,-SETTINGS_TAB_WIDTH-TAB_AREA_PADDING,0,0), TextSize=MySexyGui.Theme.FontSize, TextColor3=MySexyGui.Theme.TextDisabled, BackgroundColor3=MySexyGui.Theme.Secondary, BorderSizePixel=0, ZIndex=2, Parent=tabArea, AutoButtonColor=false }); ApplyCorner(settingsTabButton,3); ApplyStroke(settingsTabButton,nil,0)
+    CreateElement("Frame", { Name="TabLine", Size=UDim2.new(1,0,0,1), Position=UDim2.new(0,0,1,0), BackgroundColor3=MySexyGui.Theme.Outline, BorderSizePixel=0, ZIndex=3, Parent=tabArea })
+    local contentArea = CreateElement("Frame", { Name="ContentArea", Size=UDim2.new(1,0,1,-(topBar.Size.Y.Offset+tabArea.Size.Y.Offset)), Position=UDim2.new(0,0,0,topBar.Size.Y.Offset+tabArea.Size.Y.Offset), BackgroundTransparency=1, BorderSizePixel=0, ClipsDescendants=true, Parent=windowFrame })
 
-    -- Top Bar
-    local topBar = CreateElement("Frame", { Name = "TopBar", Size = UDim2.new(1, 0, 0, 30), BackgroundColor3 = MySexyGui.Theme.Header, BorderSizePixel = 0, Parent = windowFrame })
-    CreateElement("Frame", { Name = "TopBarCornerFix", Size = UDim2.new(1, 0, 0, MySexyGui.Theme.CornerRadius), Position = UDim2.new(0, 0, 1, -MySexyGui.Theme.CornerRadius), BackgroundColor3 = MySexyGui.Theme.Header, BorderSizePixel = 0, ZIndex = topBar.ZIndex -1, Parent = topBar })
+    local dragging=false;local dragStart=nil;local startPos=nil;topBar.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then dragging=true;dragStart=i.Position;startPos=windowFrame.Position;local changedConn;changedConn=i.Changed:Connect(function()if i.UserInputState==Enum.UserInputState.End then dragging=false;if changedConn then changedConn:Disconnect() end end end)end end);topBar.InputChanged:Connect(function(i)if(i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch)and dragging then local d=i.Position-dragStart;windowFrame.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+d.X,startPos.Y.Scale,startPos.Y.Offset+d.Y)end end)
 
-    -- Title Label
-    CreateElement("TextLabel", { Name = "Title", Size = UDim2.new(1, -40, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, Font = MySexyGui.Theme.Font, TextSize = MySexyGui.Theme.TitleFontSize, TextColor3 = MySexyGui.Theme.Text, Text = windowTitle, TextXAlignment = Enum.TextXAlignment.Left, Parent = topBar })
-
-    -- Close Button
-    local closeButton = CreateElement("TextButton", { Name = "CloseButton", Size = UDim2.new(0, 20, 0, 20), Position = UDim2.new(1, -25, 0.5, -10), BackgroundColor3 = Color3.fromRGB(200, 50, 50), Text = "X", Font = MySexyGui.Theme.Font, TextSize = 14, TextColor3 = Color3.fromRGB(255, 255, 255), Parent = topBar })
-    ApplyCorner(closeButton, 3)
-    closeButton.MouseButton1Click:Connect(function() screenGui.Enabled = false; windowFrame.Visible = false end) -- Just hide
-
-    -- Tab Area Container
-    local TAB_AREA_PADDING = 5; local SCROLL_BUTTON_WIDTH = 20; local SETTINGS_TAB_WIDTH = 80
-    local tabArea = CreateElement("Frame", { Name = "TabArea", Size = UDim2.new(1, 0, 0, MySexyGui.Theme.TabHeight), Position = UDim2.new(0, 0, 0, topBar.Size.Y.Offset), BackgroundTransparency = 1, Parent = windowFrame })
-
-    -- Scroll Buttons
-    local leftScroll = CreateElement("TextButton", { Name = "LeftScroll", Size = UDim2.new(0, SCROLL_BUTTON_WIDTH, 1, 0), Position = UDim2.new(0, TAB_AREA_PADDING, 0, 0), BackgroundColor3 = MySexyGui.Theme.Secondary, Text = "<", Font = MySexyGui.Theme.Font, TextSize = 16, TextColor3 = MySexyGui.Theme.Text, Visible = false, ZIndex = 2, Parent = tabArea, AutoButtonColor = false })
-    ApplyCorner(leftScroll, 3)
-    local rightScroll = CreateElement("TextButton", { Name = "RightScroll", Size = UDim2.new(0, SCROLL_BUTTON_WIDTH, 1, 0), Position = UDim2.new(1, -TAB_AREA_PADDING*2 - SCROLL_BUTTON_WIDTH - SETTINGS_TAB_WIDTH, 0, 0), BackgroundColor3 = MySexyGui.Theme.Secondary, Text = ">", Font = MySexyGui.Theme.Font, TextSize = 16, TextColor3 = MySexyGui.Theme.Text, Visible = false, ZIndex = 2, Parent = tabArea, AutoButtonColor = false })
-    ApplyCorner(rightScroll, 3)
-
-    -- Tab Bar Scrolling Frame
-    local tabBar = CreateElement("ScrollingFrame", { Name = "TabBar", Size = UDim2.new(1, -(TAB_AREA_PADDING*3 + SCROLL_BUTTON_WIDTH*2 + SETTINGS_TAB_WIDTH), 1, 0), Position = UDim2.new(0, TAB_AREA_PADDING*2 + SCROLL_BUTTON_WIDTH, 0, 0), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollingDirection = Enum.ScrollingDirection.X, CanvasSize = UDim2.new(0,0,0,0), ScrollBarThickness = 0, Parent = tabArea })
-    local tabLayout = CreateElement("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, MySexyGui.Theme.Padding), VerticalAlignment = Enum.VerticalAlignment.Center, Parent = tabBar })
-
-    -- Fixed Settings Tab Button
-    local settingsTabButton = CreateElement("TextButton", { Name = "Settings_Button", Size = UDim2.new(0, SETTINGS_TAB_WIDTH, 1, 0), Text = "Settings", Font = MySexyGui.Theme.Font, Position = UDim2.new(1, -SETTINGS_TAB_WIDTH - TAB_AREA_PADDING, 0, 0), TextSize = MySexyGui.Theme.FontSize, TextColor3 = MySexyGui.Theme.TextDisabled, BackgroundColor3 = MySexyGui.Theme.Secondary, BorderSizePixel = 0, ZIndex = 2, Parent = tabArea, AutoButtonColor = false })
-    ApplyCorner(settingsTabButton, 3)
-    ApplyStroke(settingsTabButton, MySexyGui.Theme.Outline, 0)
-
-    -- Line below tabs
-    CreateElement("Frame", { Name = "TabLine", Size = UDim2.new(1, 0, 0, 1), Position = UDim2.new(0,0,1,0), BackgroundColor3 = MySexyGui.Theme.Outline, BorderSizePixel = 0, ZIndex = 3, Parent = tabArea })
-
-    -- Main Content Area
-    local contentArea = CreateElement("Frame", { Name = "ContentArea", Size = UDim2.new(1, 0, 1, -(topBar.Size.Y.Offset + tabArea.Size.Y.Offset)), Position = UDim2.new(0, 0, 0, topBar.Size.Y.Offset + tabArea.Size.Y.Offset), BackgroundTransparency = 1, BorderSizePixel = 0, ClipsDescendants = true, Parent = windowFrame })
-
-    -- Dragging Logic
-    local dragging=false;local dragStart=nil;local startPos=nil;topBar.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then dragging=true;dragStart=i.Position;startPos=windowFrame.Position;i.Changed:Connect(function()if i.UserInputState==Enum.UserInputState.End then dragging=false end end)end end);topBar.InputChanged:Connect(function(i)if(i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch)and dragging then local d=i.Position-dragStart;windowFrame.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+d.X,startPos.Y.Scale,startPos.Y.Offset+d.Y)end end)
-
-    -- Window Object
     local window = { ScreenGui=screenGui, Frame=windowFrame, ContentArea=contentArea, TabBar=tabBar, TabLayout=tabLayout, Tabs={}, TabButtons={}, ActiveTab=nil, Keybind=keybindCode, IsVisible=windowFrame.Visible, SettingsTab=nil }
     MySexyGui.Windows[screenGui] = window
 
-    -- Tab Scrolling Update Logic
-    local function updateTabBarScroll()
-        task.wait() -- Allow layout to update
-        local canvasWidth = tabLayout.AbsoluteContentSize.X
-        local visibleWidth = tabBar.AbsoluteSize.X
-        local scrollButtonsWidth = 0
-        local canScrollLeft = tabBar.CanvasPosition.X > 5 -- Add tolerance
-        local canScrollRight = tabBar.CanvasPosition.X < math.max(0, canvasWidth - visibleWidth) - 5 -- Add tolerance
-
-        leftScroll.Visible = canScrollLeft
-        rightScroll.Visible = canScrollRight
-        if canScrollLeft then scrollButtonsWidth = scrollButtonsWidth + SCROLL_BUTTON_WIDTH + TAB_AREA_PADDING end
-        if canScrollRight then scrollButtonsWidth = scrollButtonsWidth + SCROLL_BUTTON_WIDTH + TAB_AREA_PADDING end
-
-        tabBar.Size = UDim2.new(1, -(TAB_AREA_PADDING * 2 + scrollButtonsWidth + SETTINGS_TAB_WIDTH + TAB_AREA_PADDING), 1, 0)
-        tabBar.Position = UDim2.new(0, TAB_AREA_PADDING + (canScrollLeft and SCROLL_BUTTON_WIDTH + TAB_AREA_PADDING or 0), 0, 0)
-        rightScroll.Position = UDim2.new(1, -TAB_AREA_PADDING*2 - SETTINGS_TAB_WIDTH - (canScrollRight and SCROLL_BUTTON_WIDTH or 0), 0, 0)
-    end
-
-    -- Connections for Scrolling
+    local function updateTabBarScroll() task.wait();local cw=tabLayout.AbsoluteContentSize.X;local vw=tabBar.AbsoluteSize.X;local maxS=math.max(0,cw-vw);local canL=tabBar.CanvasPosition.X>5;local canR=tabBar.CanvasPosition.X<maxS-5;local sbw=0;leftScroll.Visible=canL;rightScroll.Visible=canR;if canL then sbw=sbw+SCROLL_BUTTON_WIDTH+TAB_AREA_PADDING end;if canR then sbw=sbw+SCROLL_BUTTON_WIDTH+TAB_AREA_PADDING end;local totalReservedWidth=TAB_AREA_PADDING*2+sbw+SETTINGS_TAB_WIDTH+TAB_AREA_PADDING;tabBar.Size=UDim2.new(1,-totalReservedWidth,1,0);tabBar.Position=UDim2.new(0,TAB_AREA_PADDING+(canL and SCROLL_BUTTON_WIDTH+TAB_AREA_PADDING or 0),0,0);rightScroll.Position=UDim2.new(1,-TAB_AREA_PADDING*2-SETTINGS_TAB_WIDTH-(canR and SCROLL_BUTTON_WIDTH or 0),0,0)end
     leftScroll.MouseButton1Click:Connect(function() local t=TweenService:Create(tabBar,TweenInfo.new(0.2),{CanvasPosition=Vector2.new(math.max(0,tabBar.CanvasPosition.X-MySexyGui.Theme.TabScrollStep),0)});t:Play();t.Completed:Wait();updateTabBarScroll()end)
-    rightScroll.MouseButton1Click:Connect(function() local maxScroll=math.max(0,tabLayout.AbsoluteContentSize.X-tabBar.AbsoluteSize.X);local t=TweenService:Create(tabBar,TweenInfo.new(0.2),{CanvasPosition=Vector2.new(math.min(maxScroll,tabBar.CanvasPosition.X+MySexyGui.Theme.TabScrollStep),0)});t:Play();t.Completed:Wait();updateTabBarScroll()end)
+    rightScroll.MouseButton1Click:Connect(function() local maxS=math.max(0,tabLayout.AbsoluteContentSize.X-tabBar.AbsoluteSize.X);local t=TweenService:Create(tabBar,TweenInfo.new(0.2),{CanvasPosition=Vector2.new(math.min(maxS,tabBar.CanvasPosition.X+MySexyGui.Theme.TabScrollStep),0)});t:Play();t.Completed:Wait();updateTabBarScroll()end)
     tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() tabBar.CanvasSize=UDim2.new(0,tabLayout.AbsoluteContentSize.X,0,0);updateTabBarScroll()end)
-    windowFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateTabBarScroll) -- Update on window resize too
-    task.delay(0.1, updateTabBarScroll) -- Initial check after setup
+    windowFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateTabBarScroll); task.delay(0.1, updateTabBarScroll)
 
-    -- Set Active Tab Function
-    function window:SetActiveTab(tabToActivate)
-        if self.ActiveTab == tabToActivate then return end
-        if self.ActiveTab then self.ActiveTab.Page.Visible=false;self.ActiveTab.Button.BackgroundColor3=MySexyGui.Theme.Secondary;self.ActiveTab.Button.TextColor3=MySexyGui.Theme.TextDisabled;ApplyStroke(self.ActiveTab.Button,nil,0)end
-        tabToActivate.Page.Visible=true;tabToActivate.Button.BackgroundColor3=MySexyGui.Theme.Background;tabToActivate.Button.TextColor3=MySexyGui.Theme.TextActive;ApplyStroke(tabToActivate.Button,nil,1);self.ActiveTab=tabToActivate
-    end
+    function window:SetActiveTab(tabToActivate) if self.ActiveTab==tabToActivate then return end;if self.ActiveTab then self.ActiveTab.Page.Visible=false;self.ActiveTab.Button.BackgroundColor3=MySexyGui.Theme.Secondary;self.ActiveTab.Button.TextColor3=MySexyGui.Theme.TextDisabled;ApplyStroke(self.ActiveTab.Button,nil,0)end;tabToActivate.Page.Visible=true;tabToActivate.Button.BackgroundColor3=MySexyGui.Theme.Background;tabToActivate.Button.TextColor3=MySexyGui.Theme.TextActive;ApplyStroke(tabToActivate.Button,nil,1);self.ActiveTab=tabToActivate end
 
-    -- Create Settings Tab Content Page
     local settingsPage = CreateElement("ScrollingFrame",{Name="Settings_Page",Size=UDim2.new(1,0,1,0),Position=UDim2.new(0,0,0,0),BackgroundTransparency=1,BorderSizePixel=0,Visible=false,CanvasSize=UDim2.new(0,0,0,0),ScrollBarImageColor3=MySexyGui.Theme.Primary,ScrollBarThickness=4,Parent=contentArea})
-    local settingsPageLayout = CreateElement("UIListLayout",{Parent=settingsPage,SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,MySexyGui.Theme.Padding)})
-    settingsPageLayout.Changed:Connect(function() settingsPage.CanvasSize=UDim2.new(0,0,0,settingsPageLayout.AbsoluteContentSize.Y) end)
-    window.SettingsTab = {Name="Settings", Page=settingsPage, Button=settingsTabButton, Layout=settingsPageLayout, Elements={}}
-    window.Tabs["Settings"] = window.SettingsTab -- Add to tabs list for tracking, but not for normal tab button creation
+    local settingsPageLayout = CreateElement("UIListLayout",{Parent=settingsPage,SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,MySexyGui.Theme.Padding)});settingsPageLayout.Changed:Connect(function()settingsPage.CanvasSize=UDim2.new(0,0,0,settingsPageLayout.AbsoluteContentSize.Y)end)
+    window.SettingsTab = {Name="Settings", Page=settingsPage, Button=settingsTabButton, Layout=settingsPageLayout, Elements={}}; window.Tabs["Settings"]=window.SettingsTab
+    settingsTabButton.MouseButton1Click:Connect(function()window:SetActiveTab(window.SettingsTab)end);settingsTabButton.MouseEnter:Connect(function()if window.ActiveTab~=window.SettingsTab then settingsTabButton.BackgroundColor3=Color3.Lerp(MySexyGui.Theme.Secondary,MySexyGui.Theme.Background,0.3)end end);settingsTabButton.MouseLeave:Connect(function()if window.ActiveTab~=window.SettingsTab then settingsTabButton.BackgroundColor3=MySexyGui.Theme.Secondary end end)
+    for name,func in pairs(ElementFunctions) do window.SettingsTab[name]=func end -- Apply element functions to settings tab
 
-    settingsTabButton.MouseButton1Click:Connect(function() window:SetActiveTab(window.SettingsTab) end)
-    settingsTabButton.MouseEnter:Connect(function() if window.ActiveTab~=window.SettingsTab then settingsTabButton.BackgroundColor3=Color3.Lerp(MySexyGui.Theme.Secondary,MySexyGui.Theme.Background,0.3)end end)
-    settingsTabButton.MouseLeave:Connect(function() if window.ActiveTab~=window.SettingsTab then settingsTabButton.BackgroundColor3=MySexyGui.Theme.Secondary end end)
+    function window:AddTab(tabName) local ti=#self.TabButtons+1; local ts=TextService:GetTextSize(tabName,MySexyGui.Theme.FontSize,MySexyGui.Theme.Font,Vector2.new(math.huge,MySexyGui.Theme.TabHeight)); local bw=ts.X+MySexyGui.Theme.TabButtonPadding*2; local tb=CreateElement("TextButton",{Name=tabName.."_Button",Size=UDim2.new(0,bw,1,0),Text=tabName,Font=MySexyGui.Theme.Font,TextSize=MySexyGui.Theme.FontSize,TextColor3=MySexyGui.Theme.TextDisabled,BackgroundColor3=MySexyGui.Theme.Secondary,BorderSizePixel=0,LayoutOrder=ti,Parent=self.TabBar,AutoButtonColor=false});ApplyCorner(tb,3);ApplyStroke(tb,nil,0); local tp=CreateElement("ScrollingFrame",{Name=tabName.."_Page",Size=UDim2.new(1,0,1,0),Position=UDim2.new(0,0,0,0),BackgroundTransparency=1,BorderSizePixel=0,Visible=false,CanvasSize=UDim2.new(0,0,0,0),ScrollBarImageColor3=MySexyGui.Theme.Primary,ScrollBarThickness=4,Parent=self.ContentArea}); local pl=CreateElement("UIListLayout",{Parent=tp,SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,MySexyGui.Theme.Padding)});pl.Changed:Connect(function()tp.CanvasSize=UDim2.new(0,0,0,pl.AbsoluteContentSize.Y)end); local tab={Name=tabName,Page=tp,Button=tb,Layout=pl,Elements={}};self.Tabs[tabName]=tab;self.TabButtons[ti]=tab; tb.MouseButton1Click:Connect(function()self:SetActiveTab(tab)end); tb.MouseEnter:Connect(function()if self.ActiveTab~=tab then tb.BackgroundColor3=Color3.Lerp(MySexyGui.Theme.Secondary,MySexyGui.Theme.Background,0.3)end end); tb.MouseLeave:Connect(function()if self.ActiveTab~=tab then tb.BackgroundColor3=MySexyGui.Theme.Secondary end end); if not self.ActiveTab then self:SetActiveTab(tab)end; updateTabBarScroll(); for name,func in pairs(ElementFunctions) do tab[name]=func end; return tab end
 
-    -- Element Adding Function (to be attached to tab objects)
-    local function AddElementFunctionsToTab(tab)
-        local elementIndex = 0
-        function tab:AddButton(opts)opts=opts or{};local t=opts.Text or"Button";local cb=opts.Callback or function()print(t.." clicked")end;elementIndex=elementIndex+1;local b=CreateElement("TextButton",{Name=t.."_Button",Size=UDim2.new(1,-MySexyGui.Theme.Padding*2,0,MySexyGui.Theme.ElementHeight),Text=t,BackgroundColor3=MySexyGui.Theme.Primary,TextColor3=MySexyGui.Theme.Text,Font=MySexyGui.Theme.Font,TextSize=MySexyGui.Theme.FontSize,LayoutOrder=elementIndex,Parent=self.Page,AutoButtonColor=false});ApplyCorner(b);b.MouseButton1Click:Connect(function()pcall(cb)end);b.MouseEnter:Connect(function()b.BackgroundColor3=Color3.Lerp(MySexyGui.Theme.Primary,Color3.new(1,1,1),0.2)end);b.MouseLeave:Connect(function()b.BackgroundColor3=MySexyGui.Theme.Primary end);self.Elements[t]=b;return b end
-        function tab:AddToggle(opts)opts=opts or{};local t=opts.Text or"Toggle";local d=opts.Default or false;local cb=opts.Callback or function(s)print(t.." state:"..tostring(s))end;elementIndex=elementIndex+1;local tf=CreateElement("Frame",{Name=t.."_TogFrm",Size=UDim2.new(1,-MySexyGui.Theme.Padding*2,0,MySexyGui.Theme.ElementHeight),BackgroundTransparency=1,LayoutOrder=elementIndex,Parent=self.Page});local tl=CreateElement("TextLabel",{Name="Lbl",Size=UDim2.new(1,-60,1,0),Position=UDim2.new(0,MySexyGui.Theme.Padding,0,0),BackgroundTransparency=1,Font=MySexyGui.Theme.Font,TextSize=MySexyGui.Theme.FontSize,TextColor3=MySexyGui.Theme.Text,Text=t,TextXAlignment=Enum.TextXAlignment.Left,Parent=tf});local sws=40;local sh=20;local sw=CreateElement("TextButton",{Name="Sw",Size=UDim2.new(0,sws,0,sh),Position=UDim2.new(1,-sws-MySexyGui.Theme.Padding,0.5,-sh/2),BackgroundColor3=MySexyGui.Theme.Secondary,Text="",Parent=tf,AutoButtonColor=false});ApplyCorner(sw);local nbs=sh-4;local nb=CreateElement("Frame",{Name="Nb",Size=UDim2.new(0,nbs,0,nbs),Position=UDim2.new(0,2,0.5,-nbs/2),BackgroundColor3=MySexyGui.Theme.TextDisabled,BorderSizePixel=0,Parent=sw});ApplyCorner(nb);local st=d;local function upd()local tc=st and MySexyGui.Theme.Primary or MySexyGui.Theme.Secondary;local tnc=st and MySexyGui.Theme.TextActive or MySexyGui.Theme.TextDisabled;local tnp=st and UDim2.new(1,-nbs-2,0.5,-nbs/2)or UDim2.new(0,2,0.5,-nbs/2);TweenService:Create(sw,TweenInfo.new(0.15),{BackgroundColor3=tc}):Play();TweenService:Create(nb,TweenInfo.new(0.15),{BackgroundColor3=tnc,Position=tnp}):Play()end;sw.MouseButton1Click:Connect(function()st=not st;upd();pcall(cb,st)end);upd();self.Elements[t]={Frame=tf,Set=function(ns)st=ns;upd()end,Get=function()return st end};return self.Elements[t]end
-        function tab:AddSlider(opts) -- Enhanced Slider Code
-            opts=opts or{};local t=opts.Text or"Slider";local min=opts.Min or 0;local max=opts.Max or 100;local def=opts.Default or min;local inc=opts.Increment or 1;local sfx=opts.Suffix or"";local cb=opts.Callback or function(v)print(t.." value:"..v)end;elementIndex=elementIndex+1;local fh=MySexyGui.Theme.SliderBarHeight+MySexyGui.Theme.FontSize+MySexyGui.Theme.Padding;local sf=CreateElement("Frame",{Name=t.."_SldFrm",Size=UDim2.new(1,-MySexyGui.Theme.Padding*2,0,fh),BackgroundTransparency=1,LayoutOrder=elementIndex,Parent=self.Page});local sl=CreateElement("TextLabel",{Name="Lbl",Size=UDim2.new(0.7,-MySexyGui.Theme.Padding,0,MySexyGui.Theme.FontSize),Position=UDim2.new(0,MySexyGui.Theme.Padding,0,0),BackgroundTransparency=1,Font=MySexyGui.Theme.Font,TextSize=MySexyGui.Theme.FontSize,TextColor3=MySexyGui.Theme.Text,Text=t,TextXAlignment=Enum.TextXAlignment.Left,Parent=sf});local vl=CreateElement("TextLabel",{Name="ValLbl",Size=UDim2.new(0.3,-MySexyGui.Theme.Padding,0,MySexyGui.Theme.FontSize),Position=UDim2.new(0.7,MySexyGui.Theme.Padding,0,0),BackgroundTransparency=1,Font=MySexyGui.Theme.Font,TextSize=MySexyGui.Theme.FontSize,TextColor3=MySexyGui.Theme.TextDisabled,Text="",TextXAlignment=Enum.TextXAlignment.Right,Parent=sf});local sb=CreateElement("Frame",{Name="Bar",Size=UDim2.new(1,-MySexyGui.Theme.Padding*2,0,MySexyGui.Theme.SliderBarHeight),Position=UDim2.new(0,MySexyGui.Theme.Padding,0,MySexyGui.Theme.FontSize+2),BackgroundColor3=MySexyGui.Theme.Secondary,BorderSizePixel=0,Parent=sf});ApplyCorner(sb);local sfll=CreateElement("Frame",{Name="Fill",Size=UDim2.new(0,0,1,0),BackgroundColor3=MySexyGui.Theme.Primary,BorderSizePixel=0,Parent=sb});ApplyCorner(sfll);local sn=CreateElement("Frame",{Name="Nub",Size=UDim2.new(0,MySexyGui.Theme.SliderNubSize,0,MySexyGui.Theme.SliderNubSize),Position=UDim2.new(0,-MySexyGui.Theme.SliderNubSize/2,0.5,-MySexyGui.Theme.SliderNubSize/2),BackgroundColor3=MySexyGui.Theme.TextActive,BorderSizePixel=0,ZIndex=sb.ZIndex+1,Parent=sb});ApplyCorner(sn,3);local cv=def;local drg=false;local function rti(v)local iv=1/inc;return math.floor(v*iv+0.5)/iv end;local function uv(v,fd)v=math.clamp(v,min,max);local p=(max==min)and 0 or((v-min)/(max-min));local rv=rti(v);local rp=(max==min)and 0 or((rv-min)/(max-min));local tf=UDim2.new(rp,0,1,0);local tn=UDim2.new(rp,-MySexyGui.Theme.SliderNubSize/2,0.5,-MySexyGui.Theme.SliderNubSize/2);if fd then sfll.Size=tf;sn.Position=tn;else TweenService:Create(sfll,TweenInfo.new(0.05),{Size=tf}):Play();TweenService:Create(sn,TweenInfo.new(0.05),{Position=tn}):Play();end;local dp=math.max(0,string.len(tostring(inc):match("%.(%d*)")or""));vl.Text=string.format("%."..dp.."f",rv)..sfx;cv=rv end;local function ufi(ip)local bsx=sb.AbsolutePosition.X;local bw=sb.AbsoluteSize.X;if bw<=0 then return end;local p=math.clamp((ip.X-bsx)/bw,0,1);local nv=min+p*(max-min);local rv=rti(nv);if rv~=cv then uv(rv,true);pcall(cb,cv)end end;local da=CreateElement("TextButton",{Name="DrgArea",Size=UDim2.new(1,0,2,0),Position=UDim2.new(0,0,0.5,-MySexyGui.Theme.SliderNubSize*0.75),BackgroundTransparency=1,Text="",ZIndex=sn.ZIndex+1,Parent=sb});da.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drg=true;ufi(i.Position);i.Changed:Connect(function()if i.UserInputState==Enum.UserInputState.End then drg=false end end)end end);da.InputChanged:Connect(function(i)if(i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch)and drg then ufi(i.Position)end end);uv(cv);self.Elements[t]={Frame=sf,Set=function(nv)uv(nv)end,Get=function()return cv end};return self.Elements[t]end
-    end
+    function window:ToggleVisibility()self:SetVisibility(not self.IsVisible)end
+    function window:SetVisibility(v)self.IsVisible=v;self.Frame.Visible=v;self.ScreenGui.Enabled=v end
+    function window:Destroy()if self.ScreenGui then pcall(function()self.ScreenGui:Destroy()end)end;MySexyGui.Windows[screenGui]=nil;if MySexyGui.KeybindConnections[screenGui]then pcall(MySexyGui.KeybindConnections[screenGui].Disconnect,MySexyGui.KeybindConnections[screenGui]);MySexyGui.KeybindConnections[screenGui]=nil end end
 
-    -- Apply element functions to the Settings tab
-    AddElementFunctionsToTab(window.SettingsTab)
+    closeButton.MouseButton1Click:Connect(function() window:SetVisibility(false) end)
 
-    -- Method to add normal tabs
-    function window:AddTab(tabName)
-        local tabIndex = #self.TabButtons + 1
-
-        -- Calculate initial size based on text (CORRECTED LINE 217)
-        local textSize = TextService:GetTextSize(tabName, MySexyGui.Theme.FontSize, MySexyGui.Theme.Font, Vector2.new(1000, MySexyGui.Theme.TabHeight)) -- Added Vector2 constraint
-        local buttonWidth = textSize.X + MySexyGui.Theme.TabButtonPadding * 2
-
-        local tabButton = CreateElement("TextButton", {
-            Name = tabName .. "_Button",
-            Size = UDim2.new(0, buttonWidth, 1, 0), -- Use calculated width
-            Text = tabName, Font = MySexyGui.Theme.Font, TextSize = MySexyGui.Theme.FontSize,
-            TextColor3 = MySexyGui.Theme.TextDisabled, BackgroundColor3 = MySexyGui.Theme.Secondary,
-            BorderSizePixel = 0, LayoutOrder = tabIndex, Parent = self.TabBar, AutoButtonColor = false,
-        })
-        ApplyCorner(tabButton, 3) -- Use ApplyCorner (Line 243 in previous version, number might change slightly)
-        ApplyStroke(tabButton, MySexyGui.Theme.Outline, 0) -- Start hidden
-
-        local tabPage = CreateElement("ScrollingFrame", {
-            Name = tabName .. "_Page", Size = UDim2.new(1, 0, 1, 0), Position = UDim2.new(0, 0, 0, 0),
-            BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false, CanvasSize = UDim2.new(0, 0, 0, 0),
-            ScrollBarImageColor3 = MySexyGui.Theme.Primary, ScrollBarThickness = 4, Parent = self.ContentArea,
-        })
-        local pageLayout = CreateElement("UIListLayout", { Parent = tabPage, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, MySexyGui.Theme.Padding) })
-        pageLayout.Changed:Connect(function() tabPage.CanvasSize = UDim2.new(0, 0, 0, pageLayout.AbsoluteContentSize.Y) end)
-
-        local tab = { Name = tabName, Page = tabPage, Button = tabButton, Layout = pageLayout, Elements = {} }
-        self.Tabs[tabName] = tab
-        self.TabButtons[tabIndex] = tab
-
-        tabButton.MouseButton1Click:Connect(function() self:SetActiveTab(tab) end)
-        tabButton.MouseEnter:Connect(function() if self.ActiveTab ~= tab then tabButton.BackgroundColor3 = Color3.Lerp(MySexyGui.Theme.Secondary, MySexyGui.Theme.Background, 0.3) end end)
-        tabButton.MouseLeave:Connect(function() if self.ActiveTab ~= tab then tabButton.BackgroundColor3 = MySexyGui.Theme.Secondary end end)
-
-        if not self.ActiveTab and tabName ~= "Settings" then -- Ensure settings isn't auto-selected if added first
-             self:SetActiveTab(tab)
-        end
-        updateTabBarScroll() -- Call the function defined within CreateWindow scope
-
-        AddElementFunctionsToTab(tab) -- Add element methods (Ensure this helper function exists above AddTab or is accessible)
-        return tab
-    end
-
-    -- Window Visibility Toggle Function
-    function window:ToggleVisibility() self:SetVisibility(not self.IsVisible) end
-    function window:SetVisibility(isVisible) self.IsVisible=isVisible;self.Frame.Visible=self.IsVisible;self.ScreenGui.Enabled=self.IsVisible end
-    function window:Destroy() if self.ScreenGui then self.ScreenGui:Destroy()end;MySexyGui.Windows[screenGui]=nil;if MySexyGui.KeybindConnections[screenGui]then MySexyGui.KeybindConnections[screenGui]:Disconnect();MySexyGui.KeybindConnections[screenGui]=nil end end
-
-    -- Keybind Listener
     if keybindCode and UserInputService then local c=UserInputService.InputBegan:Connect(function(i,gp)if not gp and i.UserInputType==Enum.UserInputType.Keyboard and i.KeyCode==keybindCode then if MySexyGui.Windows[screenGui]then MySexyGui.Windows[screenGui]:ToggleVisibility()end end end);MySexyGui.KeybindConnections[screenGui]=c end
 
     return window
 end
 
--- Cleanup Function
-local cleanupConnection; cleanupConnection=RunService.Stepped:Connect(function() if not script:IsDescendantOf(game)then cleanupConnection:Disconnect();for g,c in pairs(MySexyGui.KeybindConnections)do c:Disconnect()end;for g,w in pairs(MySexyGui.Windows)do if g and g.Parent then g:Destroy()end end;print("MySexyGui Library Cleaned Up")end end)
-
--- Return the main library object
+-- Return the library table for use
 return MySexyGui
