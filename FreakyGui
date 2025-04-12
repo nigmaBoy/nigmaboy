@@ -135,7 +135,7 @@ do
         local da=CreateElement("TextButton",{
             Name="DrgArea",
             AnchorPoint = Vector2.new(0.5, 0.5),
-            Size=UDim2.new(1, 10, 0, MySexyGui.Theme.SliderNubSize * 2), -- Full width + buffer, 5x nub height vertically
+            Size=UDim2.new(1, 10, 0, MySexyGui.Theme.SliderNubSize * 1), -- Full width + buffer, 5x nub height vertically
             Position=UDim2.new(0.5, 0, 0.5, 0), -- Center on bar
             BackgroundTransparency=1, Text="", ZIndex=sn.ZIndex+1, Parent=sb
         })
