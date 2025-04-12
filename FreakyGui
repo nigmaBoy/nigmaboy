@@ -114,25 +114,83 @@ do
         local toggleObj = {Frame=tf,Set=function(ns)st=ns;upd()end,Get=function()return st end}; self.Elements[t]=toggleObj; return toggleObj
     end
 
-    function ElementFunctions:AddSlider(opts)
-        opts=opts or{};local t=opts.Text or"Slider";local min=opts.Min or 0;local max=opts.Max or 100;local def=opts.Default or min;local inc=opts.Increment or 1;local sfx=opts.Suffix or"";local cb=opts.Callback or function(v)print(t.." value:"..v)end;elementIndex=elementIndex+1
-        local fh=MySexyGui.Theme.SliderBarHeight+MySexyGui.Theme.FontSize+MySexyGui.Theme.Padding
-        local sf=CreateElement("Frame",{Name=t.."_SldFrm",Size=UDim2.new(1,-MySexyGui.Theme.Padding*2,0,fh),BackgroundTransparency=1,LayoutOrder=elementIndex,Parent=self.Page})
-        local sl=CreateElement("TextLabel",{Name="Lbl",Size=UDim2.new(0.7,-MySexyGui.Theme.Padding,0,MySexyGui.Theme.FontSize),Position=UDim2.new(0,MySexyGui.Theme.Padding,0,0),BackgroundTransparency=1,Font=MySexyGui.Theme.Font,TextSize=MySexyGui.Theme.FontSize,TextColor3=MySexyGui.Theme.Text,Text=t,TextXAlignment=Enum.TextXAlignment.Left,Parent=sf})
-        local vl=CreateElement("TextLabel",{Name="ValLbl",Size=UDim2.new(0.3,-MySexyGui.Theme.Padding,0,MySexyGui.Theme.FontSize),Position=UDim2.new(0.7,MySexyGui.Theme.Padding,0,0),BackgroundTransparency=1,Font=MySexyGui.Theme.Font,TextSize=MySexyGui.Theme.FontSize,TextColor3=MySexyGui.Theme.TextDisabled,Text="",TextXAlignment=Enum.TextXAlignment.Right,Parent=sf})
-        local sb=CreateElement("Frame",{Name="Bar",Size=UDim2.new(1,-MySexyGui.Theme.Padding*2,0,MySexyGui.Theme.SliderBarHeight),Position=UDim2.new(0,MySexyGui.Theme.Padding,0,MySexyGui.Theme.FontSize+2),BackgroundColor3=MySexyGui.Theme.Secondary,BorderSizePixel=0,Parent=sf});ApplyCorner(sb)
-        local sfll=CreateElement("Frame",{Name="Fill",Size=UDim2.new(0,0,1,0),BackgroundColor3=MySexyGui.Theme.Primary,BorderSizePixel=0,Parent=sb});ApplyCorner(sfll)
-        local sn=CreateElement("Frame",{Name="Nub",Size=UDim2.new(0,MySexyGui.Theme.SliderNubSize,0,MySexyGui.Theme.SliderNubSize),Position=UDim2.new(0,-MySexyGui.Theme.SliderNubSize/2,0.5,-MySexyGui.Theme.SliderNubSize/2),BackgroundColor3=MySexyGui.Theme.TextActive,BorderSizePixel=0,ZIndex=sb.ZIndex+1,Parent=sb});ApplyCorner(sn,3)
-        local cv=def;local drg=false;local function rti(v)if inc==0 then return v end;local iv=1/inc;return math.floor(v*iv+0.5)/iv end
-        local decimalPlaces = 0; if inc > 0 and inc < 1 then decimalPlaces = math.max(0, string.len(tostring(inc):match("%.(%d*)") or "")) end
-        local function uv(v,fd)v=math.clamp(v,min,max);local p=(max==min)and 0 or((v-min)/(max-min));local rv=rti(v);local rp=(max==min)and 0 or((rv-min)/(max-min));local tf=UDim2.new(rp,0,1,0);local tn=UDim2.new(rp,-MySexyGui.Theme.SliderNubSize/2,0.5,-MySexyGui.Theme.SliderNubSize/2);local ti=TweenInfo.new(0.05);if fd then sfll.Size=tf;sn.Position=tn;else TweenService:Create(sfll,ti,{Size=tf}):Play();TweenService:Create(sn,ti,{Position=tn}):Play();end;vl.Text=string.format("%."..decimalPlaces.."f",rv)..sfx;cv=rv end
-        local function ufi(ip)local bsx=sb.AbsolutePosition.X;local bw=sb.AbsoluteSize.X;if bw<=0 then return end;local p=math.clamp((ip.X-bsx)/bw,0,1);local nv=min+p*(max-min);local rv=rti(nv);if rv~=cv then uv(rv,true);pcall(cb,cv)end end
-        local da=CreateElement("TextButton",{Name="DrgArea",Size=UDim2.new(1,0,2.5,0),Position=UDim2.new(0,0,0.5,-MySexyGui.Theme.SliderNubSize),BackgroundTransparency=1,Text="",ZIndex=sn.ZIndex+1,Parent=sb}) -- Increased height for easier drag
-        da.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drg=true;ufi(i.Position);local changedConn;changedConn=i.Changed:Connect(function()if i.UserInputState==Enum.UserInputState.End then drg=false;changedConn:Disconnect()end end)end end)
-        da.InputChanged:Connect(function(i)if(i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch)and drg then ufi(i.Position)end end);uv(cv)
-        local sliderObj={Frame=sf,Set=function(nv)uv(nv)end,Get=function()return cv end};self.Elements[t]=sliderObj;return sliderObj
-    end
-end
+    function ElementFunctions:AddSlider(opts) -- Enhanced Slider v0.3.1
+           opts=opts or{};local t=opts.Text or"Slider";local min=opts.Min or 0;local max=opts.Max or 100;local def=opts.Default or min;local inc=opts.Increment or 1;local sfx=opts.Suffix or"";local cb=opts.Callback or function(v)print(t.." value:"..v)end;elementIndex=elementIndex+1
+           local fh=MySexyGui.Theme.SliderBarHeight+MySexyGui.Theme.FontSize+MySexyGui.Theme.Padding
+           local sf=CreateElement("Frame",{Name=t.."_SldFrm",Size=UDim2.new(1,-MySexyGui.Theme.Padding*2,0,fh),BackgroundTransparency=1,LayoutOrder=elementIndex,Parent=self.Page})
+           local sl=CreateElement("TextLabel",{Name="Lbl",Size=UDim2.new(0.7,-MySexyGui.Theme.Padding,0,MySexyGui.Theme.FontSize),Position=UDim2.new(0,MySexyGui.Theme.Padding,0,0),BackgroundTransparency=1,Font=MySexyGui.Theme.Font,TextSize=MySexyGui.Theme.FontSize,TextColor3=MySexyGui.Theme.Text,Text=t,TextXAlignment=Enum.TextXAlignment.Left,Parent=sf})
+           local vl=CreateElement("TextLabel",{Name="ValLbl",Size=UDim2.new(0.3,-MySexyGui.Theme.Padding,0,MySexyGui.Theme.FontSize),Position=UDim2.new(0.7,MySexyGui.Theme.Padding,0,0),BackgroundTransparency=1,Font=MySexyGui.Theme.Font,TextSize=MySexyGui.Theme.FontSize,TextColor3=MySexyGui.Theme.TextDisabled,Text="",TextXAlignment=Enum.TextXAlignment.Right,Parent=sf})
+           local sb=CreateElement("Frame",{Name="Bar",Size=UDim2.new(1,-MySexyGui.Theme.Padding*2,0,MySexyGui.Theme.SliderBarHeight),Position=UDim2.new(0,MySexyGui.Theme.Padding,0,MySexyGui.Theme.FontSize+2),BackgroundColor3=MySexyGui.Theme.Secondary,BorderSizePixel=0,Parent=sf});ApplyCorner(sb)
+           local sfll=CreateElement("Frame",{Name="Fill",Size=UDim2.new(0,0,1,0),BackgroundColor3=MySexyGui.Theme.Primary,BorderSizePixel=0,Parent=sb});ApplyCorner(sfll)
+           local sn=CreateElement("Frame",{Name="Nub",Size=UDim2.new(0,MySexyGui.Theme.SliderNubSize,0,MySexyGui.Theme.SliderNubSize),Position=UDim2.new(0,-MySexyGui.Theme.SliderNubSize/2,0.5,-MySexyGui.Theme.SliderNubSize/2),BackgroundColor3=MySexyGui.Theme.TextActive,BorderSizePixel=0,ZIndex=sb.ZIndex+1,Parent=sb});ApplyCorner(sn,3)
+           local cv=def;local isDragging=false; local dragConnection=nil; local releaseConnection=nil -- Connections for drag handling
+
+           local function rti(v) if inc==0 then return v end; local iv=1/(inc); return math.floor(v*iv+0.5)/iv end
+           local decimalPlaces = 0; if inc > 0 and inc < 1 then decimalPlaces = math.max(0, string.len(tostring(inc):match("%.(%d*)") or "")) end
+
+           -- Update Visuals: Added 'fromDrag' parameter
+           local function uv(v, fromDrag)
+               v=math.clamp(v,min,max);local p=(max==min)and 0 or((v-min)/(max-min));local rv=rti(v);local rp=(max==min)and 0 or((rv-min)/(max-min))
+               local tf=UDim2.new(rp,0,1,0); local tn=UDim2.new(rp,-MySexyGui.Theme.SliderNubSize/2,0.5,-MySexyGui.Theme.SliderNubSize/2)
+               if fromDrag then -- Instant update during drag
+                   sfll.Size=tf; sn.Position=tn
+               else -- Tween when setting programmatically
+                   local ti=TweenInfo.new(0.1); TweenService:Create(sfll,ti,{Size=tf}):Play(); TweenService:Create(sn,ti,{Position=tn}):Play()
+               end
+               vl.Text=string.format("%."..decimalPlaces.."f",rv)..sfx; cv=rv
+           end
+
+           -- Update From Input Position (Mouse or Touch)
+           local function ufi(inputPos)
+               local barStartX=sb.AbsolutePosition.X; local barWidth=sb.AbsoluteSize.X; if barWidth<=0 then return end
+               local p=math.clamp((inputPos.X-barStartX)/barWidth,0,1); local nv=min+p*(max-min); local rv=rti(nv)
+               if rv~=cv then uv(rv,true); pcall(cb,cv) end -- Pass true for 'fromDrag'
+           end
+
+           -- Invisible drag area
+           local da=CreateElement("TextButton",{Name="DrgArea",Size=UDim2.new(1,0,2.5,0),Position=UDim2.new(0,0,0.5,-MySexyGui.Theme.SliderNubSize),BackgroundTransparency=1,Text="",ZIndex=sn.ZIndex+1,Parent=sb})
+
+           -- Input Handling for Dragging
+           da.InputBegan:Connect(function(input)
+               if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+                   isDragging=true
+                   ufi(input.Position) -- Update on initial press
+
+                   -- Disconnect previous connections if they exist (safety)
+                   if dragConnection then pcall(dragConnection.Disconnect, dragConnection) end
+                   if releaseConnection then pcall(releaseConnection.Disconnect, releaseConnection) end
+
+                   -- Start RenderStepped update loop
+                   dragConnection = RunService.RenderStepped:Connect(function()
+                       if isDragging then
+                           ufi(UserInputService:GetMouseLocation()) -- Use global mouse position
+                       else
+                           if dragConnection then -- Disconnect self if dragging stopped
+                               pcall(dragConnection.Disconnect, dragConnection)
+                               dragConnection = nil
+                           end
+                       end
+                   end)
+
+                   -- Listen for mouse/touch release *anywhere*
+                   releaseConnection = UserInputService.InputEnded:Connect(function(endInput)
+                       if endInput.UserInputType == Enum.UserInputType.MouseButton1 or endInput.UserInputType == Enum.UserInputType.Touch then
+                           isDragging=false
+                           if releaseConnection then -- Disconnect self
+                               pcall(releaseConnection.Disconnect, releaseConnection)
+                               releaseConnection = nil
+                           end
+                           -- RenderStepped connection will disconnect itself on next frame
+                       end
+                   end)
+               end
+           end)
+
+           uv(cv) -- Set initial visual state
+           local sliderObj={Frame=sf,Set=function(nv)uv(nv, false)end,Get=function()return cv end}; -- Pass false to uv for Set
+           self.Elements[t]=sliderObj;return sliderObj
+       end
+   end
 
 -- Window Creation
 function MySexyGui:CreateWindow(options)
