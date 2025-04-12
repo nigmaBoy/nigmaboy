@@ -161,11 +161,30 @@ do
                    if releaseConnection then pcall(releaseConnection.Disconnect, releaseConnection) end
 
                    -- Start RenderStepped update loop
+                   -- Start RenderStepped update loop (Corrected)
                    dragConnection = RunService.RenderStepped:Connect(function()
                        if isDragging then
-                           ufi(UserInputService:GetMouseLocation()) -- Use global mouse position
+                           -- Get current mouse/touch location
+                           local currentInputPos = UserInputService:GetMouseLocation()
+
+                           -- Calculate the horizontal percentage relative to the slider bar
+                           local barStartX = sb.AbsolutePosition.X
+                           local barWidth = sb.AbsoluteSize.X
+                           if barWidth <= 0 then return end -- Prevent division by zero if bar isn't rendered yet
+
+                           -- Calculate percentage based *only* on the X coordinate relative to the bar
+                           local percentage = math.clamp((currentInputPos.X - barStartX) / barWidth, 0, 1)
+                           local newValue = min + percentage * (max - min)
+                           local roundedValue = rti(newValue) -- Use the rounding function
+
+                           -- Update visuals ONLY if the value changes, using the 'fromDrag' flag
+                           if roundedValue ~= cv then
+                               uv(roundedValue, true) -- uv handles updating cv
+                               pcall(cb, cv) -- Call callback with the new rounded value
+                           end
                        else
-                           if dragConnection then -- Disconnect self if dragging stopped
+                           -- Disconnect if no longer dragging
+                           if dragConnection then
                                pcall(dragConnection.Disconnect, dragConnection)
                                dragConnection = nil
                            end
