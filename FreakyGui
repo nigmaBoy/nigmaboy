@@ -52,7 +52,15 @@ local function CreateElement(elementType, properties)
 end
 
 local function ApplyCorner(guiObject, radius)
-    local corner = guiObject:FindFirstChildWhichIsA("UICorner") or Instance.new("UICorner", guiObject)
+    -- Check if a UICorner already exists
+    local corner = guiObject:FindFirstChildWhichIsA("UICorner")
+    if not corner then
+        -- Create it WITHOUT setting the parent initially
+        corner = Instance.new("UICorner")
+        -- Set the parent AFTER creation
+        corner.Parent = guiObject
+    end
+    -- Set the radius, using the provided radius or the theme default
     corner.CornerRadius = UDim.new(0, radius or MySexyGui.Theme.CornerRadius)
     return corner
 end
@@ -250,8 +258,11 @@ function MySexyGui:CreateWindow(options)
             TextColor3 = MySexyGui.Theme.TextDisabled, BackgroundColor3 = MySexyGui.Theme.Secondary,
             BorderSizePixel = 0, LayoutOrder = tabIndex, Parent = self.TabBar, AutoButtonColor = false,
         })
-        local tbCorner = ApplyCorner(tabButton, 3)
+-- Inside function window:AddTab(tabName)
+        -- ... other code ...
+        local tbCorner = ApplyCorner(tabButton, 3) -- This is Line 243
         ApplyStroke(tabButton, MySexyGui.Theme.Outline, 0) -- Start hidden
+        -- ... other code ...
 
         local tabPage = CreateElement("ScrollingFrame", {
             Name = tabName .. "_Page", Size = UDim2.new(1, 0, 1, 0), Position = UDim2.new(0, 0, 0, 0),
