@@ -214,27 +214,43 @@ function MySexyGui:CreateWindow(options)
     -- Method to add normal tabs
     function window:AddTab(tabName)
         local tabIndex = #self.TabButtons + 1
-        local textSize = TextService:GetTextSize(tabName, MySexyGui.Theme.FontSize, MySexyGui.Theme.Font)
+
+        -- Calculate initial size based on text (CORRECTED LINE 217)
+        local textSize = TextService:GetTextSize(tabName, MySexyGui.Theme.FontSize, MySexyGui.Theme.Font, Vector2.new(1000, MySexyGui.Theme.TabHeight)) -- Added Vector2 constraint
         local buttonWidth = textSize.X + MySexyGui.Theme.TabButtonPadding * 2
 
-        local tabButton = CreateElement("TextButton", { Name=tabName.."_Button", Size=UDim2.new(0,buttonWidth,1,0), Text=tabName, Font=MySexyGui.Theme.Font, TextSize=MySexyGui.Theme.FontSize, TextColor3=MySexyGui.Theme.TextDisabled, BackgroundColor3=MySexyGui.Theme.Secondary, BorderSizePixel=0, LayoutOrder=tabIndex, Parent=self.TabBar, AutoButtonColor=false })
-        ApplyCorner(tabButton, 3); ApplyStroke(tabButton, nil, 0)
+        local tabButton = CreateElement("TextButton", {
+            Name = tabName .. "_Button",
+            Size = UDim2.new(0, buttonWidth, 1, 0), -- Use calculated width
+            Text = tabName, Font = MySexyGui.Theme.Font, TextSize = MySexyGui.Theme.FontSize,
+            TextColor3 = MySexyGui.Theme.TextDisabled, BackgroundColor3 = MySexyGui.Theme.Secondary,
+            BorderSizePixel = 0, LayoutOrder = tabIndex, Parent = self.TabBar, AutoButtonColor = false,
+        })
+        ApplyCorner(tabButton, 3) -- Use ApplyCorner (Line 243 in previous version, number might change slightly)
+        ApplyStroke(tabButton, MySexyGui.Theme.Outline, 0) -- Start hidden
 
-        local tabPage = CreateElement("ScrollingFrame", { Name=tabName.."_Page", Size=UDim2.new(1,0,1,0), Position=UDim2.new(0,0,0,0), BackgroundTransparency=1, BorderSizePixel=0, Visible=false, CanvasSize=UDim2.new(0,0,0,0), ScrollBarImageColor3=MySexyGui.Theme.Primary, ScrollBarThickness=4, Parent=self.ContentArea })
-        local pageLayout = CreateElement("UIListLayout", { Parent=tabPage, SortOrder=Enum.SortOrder.LayoutOrder, Padding=UDim.new(0,MySexyGui.Theme.Padding) })
-        pageLayout.Changed:Connect(function() tabPage.CanvasSize=UDim2.new(0,0,0,pageLayout.AbsoluteContentSize.Y) end)
+        local tabPage = CreateElement("ScrollingFrame", {
+            Name = tabName .. "_Page", Size = UDim2.new(1, 0, 1, 0), Position = UDim2.new(0, 0, 0, 0),
+            BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false, CanvasSize = UDim2.new(0, 0, 0, 0),
+            ScrollBarImageColor3 = MySexyGui.Theme.Primary, ScrollBarThickness = 4, Parent = self.ContentArea,
+        })
+        local pageLayout = CreateElement("UIListLayout", { Parent = tabPage, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, MySexyGui.Theme.Padding) })
+        pageLayout.Changed:Connect(function() tabPage.CanvasSize = UDim2.new(0, 0, 0, pageLayout.AbsoluteContentSize.Y) end)
 
-        local tab = { Name=tabName, Page=tabPage, Button=tabButton, Layout=pageLayout, Elements={} }
-        self.Tabs[tabName] = tab; self.TabButtons[tabIndex] = tab
+        local tab = { Name = tabName, Page = tabPage, Button = tabButton, Layout = pageLayout, Elements = {} }
+        self.Tabs[tabName] = tab
+        self.TabButtons[tabIndex] = tab
 
         tabButton.MouseButton1Click:Connect(function() self:SetActiveTab(tab) end)
-        tabButton.MouseEnter:Connect(function() if self.ActiveTab~=tab then tabButton.BackgroundColor3=Color3.Lerp(MySexyGui.Theme.Secondary,MySexyGui.Theme.Background,0.3)end end)
-        tabButton.MouseLeave:Connect(function() if self.ActiveTab~=tab then tabButton.BackgroundColor3=MySexyGui.Theme.Secondary end end)
+        tabButton.MouseEnter:Connect(function() if self.ActiveTab ~= tab then tabButton.BackgroundColor3 = Color3.Lerp(MySexyGui.Theme.Secondary, MySexyGui.Theme.Background, 0.3) end end)
+        tabButton.MouseLeave:Connect(function() if self.ActiveTab ~= tab then tabButton.BackgroundColor3 = MySexyGui.Theme.Secondary end end)
 
-        if not self.ActiveTab then self:SetActiveTab(tab) end -- Activate first normal tab
-        updateTabBarScroll()
+        if not self.ActiveTab and tabName ~= "Settings" then -- Ensure settings isn't auto-selected if added first
+             self:SetActiveTab(tab)
+        end
+        updateTabBarScroll() -- Call the function defined within CreateWindow scope
 
-        AddElementFunctionsToTab(tab) -- Add element methods
+        AddElementFunctionsToTab(tab) -- Add element methods (Ensure this helper function exists above AddTab or is accessible)
         return tab
     end
 
