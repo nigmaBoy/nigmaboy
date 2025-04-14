@@ -1,0 +1,3614 @@
+--Kids
+if game:GetService("CoreGui"):FindFirstChild("ScreenGui") then Library:Unload() end
+
+local Repo = 'https://raw.githubusercontent.com/xtvoo/dhh/refs/heads/main/'
+local Linoria = 'https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/'
+local Library = loadstring(game:HttpGet(Repo .. 'lib'))()
+local Handler = loadstring(game:HttpGet(Repo .. 'handler'))()
+local ESPLibrary = loadstring(game:HttpGet('https://raw.githubusercontent.com/xtvoo/dhh/refs/heads/main/remodule'))()
+local ThemeManager = loadstring(game:HttpGet(Linoria .. 'addons/ThemeManager.lua'))()
+local SaveManager = loadstring(game:HttpGet(Linoria .. 'addons/SaveManager.lua'))()
+ESPLibrary.Load()
+local Window = Library:CreateWindow({
+    Title = 'I Love Kids',
+    Center = true,
+    AutoShow = true,
+    TabPadding = 8,
+    MenuFadeTime = 0.2
+})
+
+local Tabs = {
+    Main = Window:AddTab('Main'),
+    Player = Window:AddTab('Client'),
+    Visual = Window:AddTab('Visual'),
+    Script = Window:AddTab('Script'),
+    Misc = Window:AddTab('Misc'),
+    UISettings = Window:AddTab('UI Settings'),
+}
+
+local Group = {
+    Main = Tabs.Main:AddLeftGroupbox('Silent Aim'),
+    Target = Tabs.Main:AddLeftGroupbox('Targeting'),
+    Strafe = Tabs.Main:AddLeftGroupbox('Strafing'),
+
+    Bullet = Tabs.Main:AddRightGroupbox("Magic Bullet"),
+    Modifier = Tabs.Main:AddRightGroupbox("Gun Modifier"),
+    Misc = Tabs.Main:AddRightGroupbox("Misc"),
+
+    Player = Tabs.Player:AddLeftGroupbox("Movement"),
+    Desync = Tabs.Player:AddLeftGroupbox("Desync"),
+
+    Character = Tabs.Player:AddRightGroupbox("Character"),
+    Protection = Tabs.Player:AddRightGroupbox("Protection"),
+    Ragdoll = Tabs.Player:AddRightGroupbox("Ragdoll"),
+
+    Esp = Tabs.Visual:AddLeftGroupbox("Esp"),
+    Notify = Tabs.Visual:AddLeftGroupbox("Notify"),
+    Lighting = Tabs.Visual:AddLeftGroupbox("Lighting"),
+
+    Tracer = Tabs.Visual:AddRightGroupbox("Bullet Tracer"),
+    Trail = Tabs.Visual:AddRightGroupbox("Trail"),
+    PlayerChar = Tabs.Visual:AddRightGroupbox("Target"),
+    Sound = Tabs.Visual:AddRightGroupbox("Hit Sound"),
+    Hit = Tabs.Visual:AddRightGroupbox("Hit Effect"),
+    Stomp = Tabs.Visual:AddRightGroupbox("Stomp Effect"),
+    Shoot = Tabs.Visual:AddRightGroupbox("Shoot"),
+
+    Neckgrab = Tabs.Script:AddLeftGroupbox("Neckgrab"),
+    tools = Tabs.Script:AddRightGroupbox("funny tools"),
+    flingtools = Tabs.Script:AddRightGroupbox("other funny tools"),	
+    Effects = Tabs.Script:AddRightGroupbox("Solos stomps"),	
+    Shop = Tabs.Misc:AddLeftGroupbox("Shop"),
+    Animator = Tabs.Misc:AddLeftGroupbox("Animator"),
+
+    Teleport = Tabs.Misc:AddRightGroupbox("Teleport"),
+
+}
+
+local locat = {
+    ["High Medium Armor"] = CFrame.new(-934.73651123047, -28.492471694946, 565.99884033203),
+    ["Food"] = CFrame.new(-326.8529052734375, 23.68067169189453, -303.3015441894531),
+    ["Gas Station"] = CFrame.new(608.599426, 65.3087997, -267.643066, -0.414288431, -1.04483455e-09, -0.91014564, -1.30518893e-08, 1, 4.79309215e-09, 0.91014564, 1.38648408e-08, -0.41428),
+    ["School"] = CFrame.new(-581.790283, 68.4947281, 331.046448, 0.220051467, -7.56681329e-05, 0.975498199, -3.96428077e-05, 0.999999583, 8.65130132e-05, -0.975498199, -5.77078645e-05, 0.22005),
+    ["Ufo"] = CFrame.new(65.1504517, 138.999954, -691.819031, -0.935115993, -5.9791418e-08, -0.354341775, -3.10840989e-08, 1, -8.67077574e-08, 0.354341775, -7.0067415e-08, -0.935115993),
+    ["Bank"] = CFrame.new(-374.538391, 102.052887, -440.20871, 0.958144963, 9.24065989e-06, -0.286283433, -9.98981818e-07, 1, 2.89345699e-05, 0.286283433, -2.74375216e-05, 0.958144963),
+    ["Gym Top"] = CFrame.new(-76.178093, 56.6998138, -629.940979, -0.9998914, -1.09370752e-07, 0.0147391548, -1.0945012e-07, 1, -4.57786342e-09, -0.0147391548, -6.1905685e-09, -0.9998914),
+    ["Casino"] = CFrame.new(-1048.95093, 110.254997, -154.554016, 0.198458344, 0.0412604436, -0.979240835, -4.06676299e-05, 0.999113858, 0.0420895219, 0.98010987, -0.00831318926, 0.198284075),
+    ["Uphill"] = CFrame.new(485.651947, 112.5, -644.316833, -0.998899043, 1.33881997e-06, 0.0469136797, 8.00526664e-07, 1, -1.14929126e-05, -0.0469136797, -1.14426994e-05, -0.998899043),
+    ["Revolver"] = CFrame.new(-659.053162, 110.748001, -158.224365, 0.146754071, -2.38941595e-08, -0.989172995, -1.60316838e-09, 1, -2.43935396e-08, 0.989172995, 5.16566212e-09, 0.146754071),
+    ["PlayGround"] = CFrame.new(-260.836182, 126.424866, -877.783875, -0.977067351, -1.56508904e-05, -0.212922528, 9.92513264e-07, 1, -7.80593255e-05, 0.212922528, -7.64806027e-05, -0.977067351)
+}
+
+local Player = game:GetService("Players");
+local OWNER = game:GetService("Players").LocalPlayer;
+local Lighting = game:GetService("Lighting");
+local RunService = game:GetService("RunService");
+local TweenService = game:GetService("TweenService");
+local UserInputService = game:GetService("UserInputService");
+local ReplicatedStorage = game:GetService("ReplicatedStorage");
+local MainEvent = game:GetService("ReplicatedStorage").MainEvent;
+
+local OldFogColor = Lighting.FogColor;
+local OldFogStart = Lighting.FogStart;
+local OldFogEnd = Lighting.FogEnd;
+local OldAmbient = Lighting.Ambient;
+local OldBrightness = Lighting.Brightness;
+local OldClockTime = Lighting.ClockTime;
+local OldColorShiftBottom = Lighting.ColorShift_Bottom;
+local OldColorShiftTop = Lighting.ColorShift_Top;
+
+local Da_Hood_Code = {
+    "TRADEME!",
+    "DAUP",
+    "pumpkins2023",
+    "RUBY",
+    "DACARNIVAL",
+    "HALLOWEEN2024",
+    "THANKSGIVING24",
+    "SHRIMP",
+    "VIP",
+    "2025"
+}
+
+local GrabbedCharacter;
+local Interval;
+local TARGET;
+local RopeGrab;
+local Pos;
+
+task.spawn(function()
+	local Delay = 5
+	local Calc = #Da_Hood_Code * Delay
+	for i, v in Da_Hood_Code do
+		MainEvent:FireServer("EnterPromoCode", v)
+		task.wait(Delay)
+	end
+end)
+
+local Asset = {
+    ["HitAsset"] = {
+        ["Shard"] = "rbxassetid://125115196741368",
+        ["Portal"] = "rbxassetid://80500412634796",
+        ["Pulse"] = "rbxassetid://2916153928",
+        ["Tornado"] = "rbxassetid://130660669883158",
+        ["Glitch"] = "rbxassetid://100133891560919",
+        ["Whirl"] = "rbxassetid://89688235624910",
+        ["Purple"] = "rbxassetid://86928069397913",
+        ["Blade"] = "rbxassetid://87783159037269"
+    },
+
+    ["SoundAsset"] = {
+        ["Bubble"] = "rbxassetid://6534947588",
+        ["Lazer"] = "rbxassetid://130791043",
+        ["Pop"] = "rbxassetid://198598793",
+        ["Rust"] = "rbxassetid://1255040462",
+        ["Vine"] = "rbxassetid://5332680810",
+        ["UwU"] = "rbxassetid://8679659744",
+        ["Bruh"] = "rbxassetid://4578740568",
+        ["Skeet"] = "rbxassetid://5633695679",
+        ["Neverlose"] = "rbxassetid://6534948092",
+        ["Fatality"] = "rbxassetid://6534947869",
+        ["Bonk"] = "rbxassetid://5766898159",
+        ["Minecraft"] = "rbxassetid://5869422451",
+        ["Gamesense"] = "rbxassetid://4817809188",
+        ["RIFK7"] = "rbxassetid://9102080552",
+        ["Bamboo"] = "rbxassetid://3769434519",
+        ["Crowbar"] = "rbxassetid://546410481",
+        ["Beep"] = "rbxassetid://8177256015",
+        ["Stone"] = "rbxassetid://3581383408",
+        ["Old Fatality"] = "rbxassetid://6607142036",
+        ["Click"] = "rbxassetid://8053704437",
+        ["Steve"] = "rbxassetid://4965083997",
+        ["Call of Duty"] = "rbxassetid://5952120301",
+        ["Bat"] = "rbxassetid://3333907347",
+        ["TF2 Critical"] = "rbxassetid://296102734",
+        ["Saber"] = "rbxassetid://8415678813",
+        ["BeamWare"] = "rbxassetid://3124331820",
+        ["Osu"] = "rbxassetid://7149255551",
+        ["TF2"] = "rbxassetid://2868331684",
+        ["Slime"] = "rbxassetid://6916371803",
+        ["Among Us"] = "rbxassetid://5700183626"
+    }
+}
+
+local Settings = {
+    ["Player"] = {
+        ["Enabled"] = false,
+        ["BulletTP"] = false,
+        ["KillAura"] = false,
+        ["HiddenBullet"] = "Normal",
+        ["Whitelisted"] = {},
+
+        ["NoShoot"] = nil,
+        ["AutoShoot"] = nil,
+        ["AutoReload"] = nil,
+        ["Recoil"] = 0,
+
+        ["Fly"] = false,
+        ["Velocity"] = false,
+        ["FlySpeed"] = 300,
+        ["VelocitySpeed"] = 250,
+        ["WalkSpeedUnit"] = 16,
+        ["JumpPowerUnit"] = 50,
+        ["HipHeightUnit"] = 2,
+
+        ["Desync"] = false,
+        ["DesnycY"] = 5,
+
+        ["Orientation"] = {X = 0, Y = 0, Z = 0},
+        ["OrientationType"] = "Axis Front",
+
+        ["Noclip"] = false,
+
+        ["CFrame"] = false,
+        ["CFrameSpeed"] = 1,
+
+        ["Sticky"] = false,
+
+        ["Notify"] = false,
+        ["NotifyText"] = "+1 Hit",
+        ["NotifyDuration"] = 1,
+
+        ["BulletEnabled"] = false,
+        ["BulletColor"] = Color3.fromRGB(255,255,255),
+        ["BulletSpeed"] = 2,
+        ["BulletWidth"] = 1,
+
+        ["Ragdoll"] = false,
+        ["RagdollSpeed"] = 30,
+        ["RagdollType"] = "Ball",
+
+        ["Highlight"] = false,
+        ["HighlightColor"] = Color3.fromRGB(255,255,255),
+
+        ["Hit_Sound"] = false,
+        ["Hit_Volume"] = 1,
+        ["Hit_Effect"] = false,
+
+        ["Animator"] = false,
+        ["AnimatorSpeed"] = 1
+    },
+    ["Target"] = {
+        ["Enabled"] = false,
+        ["Spectate"] = false,
+        ["AutoKill"] = false,
+
+        ["Strafe"] = false,
+        ["StrafeTypes"] = "CFrame",
+        ["OffsetType"] = "X",
+        ["Prediction"] = 1,
+        ["StrafeSpeed"] = 5,
+        ["Distance"] = 10,
+        ["Offset"] = {X = 0, Y = 0, Z = 0}
+    },
+    ["SilentAim"] = {
+        ["Enabled"] = false,
+        ["IgnoreKnocked"] = false,
+        ["FovOnRad"] = false
+    },
+    ["Visual"] = {
+        ["Particle"] = {
+            ["Color1"] = Color3.fromRGB(255,255,255),
+            ["Color2"] = Color3.fromRGB(255,255,255),
+            ["Color3"] = Color3.fromRGB(255,255,255)
+        },
+        ["Line"] = {
+            ["Enabled"] = false,
+            ["Color"] = Color3.fromRGB(255,255,255),
+            ["Thickness"] = 1
+        },
+        ["Circle"] = {
+            ["Enabled"] = false,
+            ["Color"] = Color3.fromRGB(255,255,255),
+            ["Thickness"] = 1,
+            ["Radius"] = 100
+        },
+        ["Trail"] = {
+            ["Enabled"] = false,
+            ["Lifetime"] = 1,
+            ["Color"] = Color3.fromRGB(255,102,204)
+        },
+        ["Visualizer"] = {
+            ["Enabled"] = false,
+            ["Storage"] = nil,
+            ["Color"] = Color3.fromRGB(219,0,255)
+
+
+
+	},
+	["Value"] = {
+            ["GrabFrame"] = {X = 0, Y = 0, Z = 0},
+            ["GrabAngles"] = {X = 0, Y = 0, Z = 0},
+
+        },
+        ["Lighting"] = {
+            ["Ambient"] = false,
+            ["ColorShiftBottom"] = false,
+            ["ColorShiftUp"] = false,
+            ["FogColor"] = false,
+            ["FogStart"] = false,
+            ["FogEnd"] = false,
+            ["ClockTime"] = false,
+            ["Brightness"] = false,
+
+            ["AmbientSelected"] = OldAmbient,
+            ["ColorShiftBottomSelected"] = OldColorShiftBottom,
+            ["ColorShiftTopSelected"] = OldColorShiftTop,
+            ["FogColorSelected"] = OldFogColor,
+            ["FogStartSelected"] = OldFogStart,
+            ["FogEndSelected"] = OldFogEnd,
+            ["ClockTimeSelected"] = OldClockTime,
+            ["BrightnessSelected"] = OldBrightness
+        }
+    },
+    ["Cache"] = {
+        ["Table"] = {
+            ["HitSound"] = {},
+            ["HitEffect"] = {}
+        },
+        ["Bool"] = {
+            ["Blocking"] = true
+        },
+        ["String"] = {
+            ["DesyncTypes"] = "Random"
+        },
+        ["Connection"] = {
+            ["SilentAim"] = nil,
+
+            ["Spectate"] = nil,
+            ["Sticky"] = nil,
+
+            ["Stomp"] = nil,
+            ["Strafe"] = nil,
+            ["Fly"] = nil,
+
+            ["Velocity"] = nil,
+            ["WalkSpeed"] = nil,
+            ["JumpPower"] = nil,
+            ["HipHeight"] = nil,
+            ["Noclip"] = nil,
+
+            ["Desync"] = nil,
+            ["Flip"] = nil,
+
+            ["AntiStomp"] = nil,
+            ["AutoStomp"] = nil,
+            ["AutoFire"] = nil,
+            ["AutoArmor"] = nil,
+
+            ["RagdollMove"] = nil,
+            ["RagdollJump"] = nil,
+
+            ["SelectedSound"] = nil,
+            ["SelectedHit"] = nil,
+
+            ["JointWatcher"] = nil,
+
+            ["Animator"] = nil
+        },
+        ["Interger"] = {
+            ["Delta"] = 0,
+            ["Duration"] = 1,
+
+            ["StickyDistance"] = 250
+        }
+    }
+}
+
+local Dependencies = {}
+
+local Line,Circle,NewCam
+Line = Drawing.new("Line")
+Line.From = Vector2.new(0, 0)
+Line.To = Vector2.new(0, 0)
+Line.Visible = Settings["Visual"]["Line"]["Enabled"]
+Line.Thickness = Settings["Visual"]["Line"]["Thickness"]
+Line.Color = Settings["Visual"]["Line"]["Color"]
+
+Circle = Drawing.new('Circle')
+Circle.Radius = Settings["Visual"]["Circle"]["Radius"]
+Circle.Color = Settings["Visual"]["Circle"]["Color"]
+Circle.Thickness = Settings["Visual"]["Circle"]["Thickness"]
+Circle.Visible = Settings["Visual"]["Circle"]["Enabled"]
+Circle.NumSides = 120
+
+if getgenv().Connection___ ~= nil then
+	for _, Connection in getgenv().Connection___ do
+		Connection:Disconnect()
+		getgenv().Connection___ = nil
+	end
+end
+
+if getgenv().TARGET_CONNETION ~= nil then
+	for _, zz in getgenv().TARGET_CONNETION do
+		zz:Disconnect()
+		getgenv().TARGET_CONNETION = nil
+	end
+end
+getgenv().Connection___ = {}
+getgenv().TARGET_CONNETION = {}
+function InsertOn(Table, Value)
+	if type(Table) == "table" and Value then
+		Table[#Table + 1] = Value
+	end
+end
+
+function Notify(text,duration)
+    Library:Notify(text,duration)
+end
+
+function Chat(msg)
+    ReplicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer(msg, 'All')
+end
+
+function Disconnect(connection)
+    if connection then
+        connection:Disconnect()
+    end
+end
+
+function Destroy(path,string)
+    if path:FindFirstChild(string) then
+        path:FindFirstChild(string):Destroy()
+    end
+end
+
+function KO(v)
+    if v.Character:FindFirstChild('BodyEffects') then
+        if v.Character.BodyEffects:FindFirstChild('K.O') then
+            return v.Character.BodyEffects['K.O']
+        end
+    end
+end
+
+function Dead(v)
+    if v.Character:FindFirstChild('BodyEffects') then
+        if v.Character.BodyEffects:FindFirstChild('SDeath') then
+            return v.Character.BodyEffects['SDeath']
+        end
+    end
+end
+
+function getHumanoid(v)
+    if v.Character:FindFirstChildOfClass("Humanoid") then
+       return v.Character.Humanoid
+    end
+end
+
+function getRoot_(v)
+    if not v.Character:FindFirstChild(v.Name) then
+        if v.Character:FindFirstChild('HumanoidRootPart') then
+            return v.Character.HumanoidRootPart
+        else
+            return v.Character.UpperTorso
+        end
+    else
+        if not v.Character:FindFirstChild('HumanoidRootPart') then
+            return v.Character:FindFirstChild(v.Name).HumanoidRootPart
+        else
+            return v.Character.HumanoidRootPart
+        end
+    end
+end
+
+function Collision(X,Bool)
+    for _, v in X.Character:GetDescendants() do
+        if (v:IsA("BasePart") or v:IsA("MeshPart") or v:IsA("Part")) and v.CanCollide == true and not string.match(v.Name, "Fake") and not string.match(v.Name, "Arm") and not string.match(v.Name, "Leg") then
+            v.CanCollide = Bool
+        end
+    end
+end
+
+function AnimPlay(ID, SPEED, Time, Smoothing)
+	for i,v in OWNER.Character:WaitForChild("Humanoid"):GetPlayingAnimationTracks() do if (v.Animation.AnimationId:match("rbxassetid://"..ID)) then v:Stop() end end
+	local animation = Instance.new('Animation', game:GetService("workspace"))
+	animation.AnimationId = 'rbxassetid://'..ID
+	playing = OWNER.Character:WaitForChild("Humanoid"):LoadAnimation(animation)
+	playing.Priority = Enum.AnimationPriority.Action4
+	if tonumber(Smoothing) then
+		playing:Play(Smoothing) 
+	else
+		playing:Play() 
+	end
+	if tonumber(SPEED) then
+		playing:AdjustSpeed(SPEED)
+	else
+		playing:AdjustSpeed(1)
+	end
+	if tonumber(Time) then
+		playing.TimePosition = Time
+	end
+	animation:Destroy()
+end
+
+function AnimStop(ID, SPEED)
+	for i,v in OWNER.Character:WaitForChild("Humanoid"):GetPlayingAnimationTracks() do
+		if (v.Animation.AnimationId:match("rbxassetid://"..ID)) then
+			if tonumber(SPEED) then
+				v:Stop(SPEED)
+			else
+				v:Stop()
+			end
+		end 
+	end
+end
+
+function Trail(Bool)
+    if Bool then
+        for i = 1,5 do
+            for _, v in OWNER.Character:GetChildren() do
+                if v:IsA("BasePart") and not string.match(v.Name, "Fake") then
+                    local Trail = Instance.new("Trail")
+                    Trail.Texture = "rbxassetid://1390780157"
+                    Trail.Name = "SFXTRAIL"
+                    local Attachment0 = Instance.new("Attachment",v)
+                    Attachment0.Name = "Attachment0"
+                    local Attachment1 = Instance.new("Attachment",getRoot_(OWNER))
+                    Attachment1.Name = "Attachment1"
+                    Trail.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Settings["Visual"]["Trail"]["Color"]),ColorSequenceKeypoint.new(1, Settings["Visual"]["Trail"]["Color"])})
+                    Trail.Lifetime = Settings["Visual"]["Trail"]["Lifetime"]
+                    Trail.Attachment0 = Attachment0
+                    Trail.Attachment1 = Attachment1
+                    Trail.Parent = v
+                end
+            end
+        end
+    else
+        for _, a in OWNER.Character:GetDescendants() do
+            if a.Name == "SFXTRAIL" or a.Name == "Attachment0" or a.Name == "Attachment1" then
+                a:Destroy()
+            end
+        end
+    end
+end
+
+function HitEffect(Player, Type)
+    if not Asset["HitAsset"] or not Asset["HitAsset"][Type] then return end
+
+    local Attachment
+    if Type == "Tornado" then
+        Attachment = Instance.new("Attachment", Player.Character:FindFirstChild("LowerTorso"))
+        Attachment.Orientation = Vector3.new(-90, 0, 0)
+        Attachment.Position = Vector3.new(0, -1.5, 0)
+    else
+        Attachment = Instance.new("Attachment", Player.Character:FindFirstChild("HumanoidRootPart"))
+        Attachment.Orientation = Vector3.new(0, 0, 0)
+    end
+
+    if Type == "Pulse" then
+        Player.Character.Archivable = true
+        local Clone = Player.Character:Clone()
+        Clone.Parent = workspace
+        Clone.Humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+        for _, v in Clone:GetDescendants() do
+            if v:IsA("BasePart") then
+                v.Material = Enum.Material.ForceField
+                v.Color = Color3.fromRGB(255,255,255)
+                v.CanCollide = false
+                v.Anchored = true
+                TweenService:Create(v, TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {Transparency = 1}):Play()
+            end
+            if v:IsA("Accessory") or v:IsA("Tool") then
+                v:Destroy()
+            end
+            if v.Name == "Head" and v:FindFirstChild("face") then
+                v.face:Destroy()
+            end
+        end
+        for i,v in Player.Character:GetDescendants() do
+            if v:IsA("BasePart") then
+                if Clone:FindFirstChild(v.Name) then
+                    Clone:FindFirstChild(v.Name).CFrame = v.CFrame
+                end
+            end
+        end
+        Clone:PivotTo(Player.Character.PrimaryPart.CFrame)
+        Player.Character.Archivable = false
+        game:GetService('Debris'):AddItem(Clone, 2)
+    elseif Type == "Shard" then
+        local object = game:GetObjects("rbxassetid://125115196741368")[1]
+        local wisp = game:GetObjects("rbxassetid://139168481251179")[1]
+        local explosion = game:GetObjects("rbxassetid://77298741007658")[1]
+        
+        object.Parent = workspace
+        wisp.Parent = object
+        explosion.Parent = workspace
+        PlaySound(5599556783)
+        PlaySound(5862482798)
+        PlaySound(9066732918)
+        
+        object.Position = TARGET.Character.HumanoidRootPart.Position + Vector3.new(0, math.random(20, 45), 0) + Vector3.new(math.random(-45, 45), math.random(5, 10), math.random(-45, 45))
+        
+        local tween1 = game:GetService("TweenService"):Create(object, TweenInfo.new(0.25), {Transparency = 0.55;CFrame = CFrame.lookAt(object.Position, TARGET.Character.HumanoidRootPart.Position) * CFrame.Angles(-math.pi / 2, 0, 0);})
+        
+        local tween2 = game:GetService("TweenService"):Create(object, TweenInfo.new(0.2, Enum.EasingStyle.Bounce, Enum.EasingDirection.In), {Position = TARGET.Character.HumanoidRootPart.Position;})
+        task.wait(0.35)
+        tween1:Play()
+        tween1.Completed:Connect(function()
+            tween2:Play()
+        end)
+        wisp.Rate = 100
+        PlaySound(7093763783)
+        PlaySound(4958429672)
+        task.wait(.4)
+        explosion.Position = TARGET.Character.HumanoidRootPart.Position
+        explosion.Anchored = true
+        task.wait(2)
+        wisp.Rate = 0
+        game:GetService("TweenService"):Create(object, TweenInfo.new(1), { Transparency = 1 }):Play()
+        game:GetService("TweenService"):Create(explosion, TweenInfo.new(0.2), { Transparency = 1 }):Play()
+        task.wait(1)
+        game:GetService("Debris"):AddItem(object,0)
+        game:GetService("Debris"):AddItem(explosion,0)
+    elseif Type == "Blade" then
+        local Particle = game:GetObjects("rbxassetid://87783159037269")[1]
+        Particle.Parent = Attachment
+        Particle.Color = ColorSequence.new(Settings["Visual"]["Particle"]["Color1"],Settings["Visual"]["Particle"]["Color2"],Settings["Visual"]["Particle"]["Color3"])
+        Particle.Transparency = NumberSequence.new(0, 1)
+    elseif Type == "Tornado" then
+        local Particle = game:GetObjects("rbxassetid://130660669883158")[1]
+        Particle.Parent = Attachment
+        Particle.Color = ColorSequence.new(Settings["Visual"]["Particle"]["Color1"],Settings["Visual"]["Particle"]["Color2"],Settings["Visual"]["Particle"]["Color3"])
+        Particle.Transparency = NumberSequence.new(0, 1)
+    elseif Type == "Glitch" then
+        local Particle = game:GetObjects("rbxassetid://100133891560919")[1]
+        Particle.Parent = Attachment
+        Particle.Color = ColorSequence.new(Settings["Visual"]["Particle"]["Color1"],Settings["Visual"]["Particle"]["Color2"],Settings["Visual"]["Particle"]["Color3"])
+        Particle.Transparency = NumberSequence.new(0, 1)
+    elseif Type == "Whirl" then
+        local Particle = game:GetObjects("rbxassetid://89688235624910")[1]
+        Particle.Parent = Attachment
+        Particle.Color = ColorSequence.new(Settings["Visual"]["Particle"]["Color1"],Settings["Visual"]["Particle"]["Color2"],Settings["Visual"]["Particle"]["Color3"])
+        Particle.Transparency = NumberSequence.new(0, 1)
+    elseif Type == "Purple" then
+        local Particle = game:GetObjects("rbxassetid://86928069397913")[1]
+        Particle.Parent = Attachment
+        Particle.Color = ColorSequence.new(Settings["Visual"]["Particle"]["Color1"],Settings["Visual"]["Particle"]["Color2"],Settings["Visual"]["Particle"]["Color3"])
+        Particle.Transparency = NumberSequence.new(0, 1)
+    end
+    game:GetService("Debris"):AddItem(Attachment, 1.7)
+end
+
+function Emitter(ID,Name,Parent,Y)
+    local Object = game:GetObjects("rbxassetid://"..ID)
+    if not Object or #Object == 0 then return end  
+
+    local RetrievedObject = Object[1]
+    local Attachment = Instance.new("Attachment",Parent)
+    Attachment.Name = Name
+    Attachment.Position = Vector3.new(0,Y,0)
+    for i,v in RetrievedObject:GetChildren() do
+        v.Parent = Attachment  
+    end
+end
+
+--[[function AddDependency(name : string, tab : any)
+    Dependencies[name] = tab:AddDependencyBox()
+    return Dependencies[name]
+end
+
+function SetupDependency(name: string, dependencies: boolean)
+    if Dependencies[name] then
+        Dependencies[name]:SetupDependencies(dependencies)
+    end
+end]]
+
+function CoreBypass()
+    Destroy(workspace,"Core")
+    local Core = Instance.new("Part")
+    Core.Name = "Core"
+    Core.Size = Vector3.new(0.05, 0.05, 0.05)
+    Core.CanCollide = false
+    Core.Transparency = 1
+    Core.Parent = workspace
+    local Weld = Instance.new("Weld", Core)
+    Weld.Part0 = Core
+    Weld.Part1 = OWNER.Character.HumanoidRootPart
+    Weld.C0 = CFrame.new(0, 0, 0)
+    return Core
+end
+
+function Reload()
+    if OWNER.Character:FindFirstChildWhichIsA("Tool") then
+        if OWNER.Character:FindFirstChildWhichIsA("Tool"):FindFirstChild("Ammo")then
+            if OWNER.Character:FindFirstChildWhichIsA("Tool"):FindFirstChild("Ammo").Value <= 0 then
+                if OWNER.Character:FindFirstChild('BodyEffects'):FindFirstChild('Reload').Value == false then
+                    MainEvent:FireServer("Reload",OWNER.Character:FindFirstChildWhichIsA("Tool"))
+                end
+            end
+        end
+    end
+end
+
+function CustomOffsets(x)
+	local Root = getRoot_(OWNER)
+	local LastPos = Root.CFrame
+	getHumanoid(OWNER).CameraOffset = x:ToObjectSpace(CFrame.new(LastPos.Position)).Position
+	Root.CFrame = x
+	RunService.RenderStepped:Wait()
+	Root.CFrame = LastPos
+	getHumanoid(OWNER).CameraOffset = LastPos:ToObjectSpace(CFrame.new(LastPos.Position)).Position
+end
+
+function Buying(_,__)
+    getHumanoid(OWNER):UnequipTools()
+    local backpack = OWNER.Backpack or OWNER.Character
+    if backpack:FindFirstChild(__) then Notify("Failed : " .. __ .. " Is Already In Your Backpack.", 3) return end
+    local intcurrency = OWNER.DataFolder.Currency.Value
+    repeat RunService.Heartbeat:Wait()
+        CustomOffsets(workspace.Ignored.Shop[_].Head.CFrame)
+        fireclickdetector(workspace.Ignored.Shop[_].ClickDetector)
+    until OWNER.DataFolder.Currency.Value < intcurrency
+    PlaySound(4612383453)
+end
+
+function Invis(v, t)
+    local bodyParts = {"Head", "UpperTorso", "LowerTorso", "LeftUpperArm", "LeftLowerArm", "LeftHand", "RightUpperArm", "RightLowerArm", "RightHand", "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "RightUpperLeg", "RightLowerLeg", "RightFoot"}
+
+    for _, part in v:GetDescendants() do
+        if part:IsA("BasePart") and table.find(bodyParts, part.Name) then
+            part.Transparency = t and 1 or 0
+        elseif part:IsA("Decal") or part:IsA("Texture") then
+            if table.find(bodyParts, part.Parent.Name) then
+                part.Transparency = t and 1 or 0
+            end
+        elseif part:IsA("Accessory") and part:FindFirstChild("Handle") then
+            part.Handle.Transparency = t and 1 or 0
+        end
+    end
+end
+
+function Subject(H)
+    if H then
+        workspace.CurrentCamera.CameraSubject = H.Character.Humanoid
+    end
+end
+
+function OldPos()
+    if not Pos then 
+        Pos = getRoot_(OWNER).CFrame 
+    end
+end
+
+function ReturnPos()
+    if Pos then
+        getRoot_(OWNER).CFrame = Pos
+        Pos = nil
+    end
+end
+
+local Beam
+Beam = Instance.new("Part", workspace)
+
+Beam.Name = "BeamPart"
+Beam.Transparency = 1
+
+function ShootBeam(v1, v2)
+    v2 = Vector3.new(v2.X - 0.1, v2.Y + 0.2, v2.Z)
+    local Part = Instance.new("Part", Beam)
+    Part.Size = Vector3.new(0, 0, 0)
+    Part.Massless = true
+    Part.Transparency = 1
+    Part.CanCollide = false
+    Part.Position = v1
+    Part.Anchored = true
+    local Attachment = Instance.new("Attachment", Part)
+    local Part2 = Instance.new("Part", Beam)
+    Part2.Size = Vector3.new(0, 0, 0)
+    Part2.Transparency = 0
+    Part2.CanCollide = false
+    Part2.Position = v2
+    Part2.Anchored = true
+    Part2.Material = Enum.Material.Neon
+    Part2.Color = Color3.new(1, 1, 1)
+    Part2.Massless = true
+    local Attachment2 = Instance.new("Attachment", Part2)
+    local Beam = Instance.new("Beam", Part)
+    Beam.FaceCamera = true
+    Beam.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Settings["Player"]["BulletColor"]),ColorSequenceKeypoint.new(1, Settings["Player"]["BulletColor"]),})
+    Beam.Attachment0 = Attachment
+    Beam.Attachment1 = Attachment2
+    Beam.LightEmission = 6
+    Beam.LightInfluence = 5
+    Beam.Width0 = Settings["Player"]["BulletWidth"]
+    Beam.Width1 = Settings["Player"]["BulletWidth"]
+    Beam.Texture = "http://www.roblox.com/asset/?id=7151778302"
+    Beam.TextureSpeed = Settings["Player"]["BulletSpeed"]
+    Beam.TextureLength = 1
+    delay(1, function()
+        Part:Destroy()
+        Part2:Destroy()
+    end)
+end
+
+function DisableRay(Bool)
+    if OWNER.Character:FindFirstChildWhichIsA("Tool") and OWNER.Character:FindFirstChildWhichIsA("Tool"):FindFirstChild("Handle") and OWNER.Character:FindFirstChildWhichIsA("Tool"):FindFirstChild("Ammo") and OWNER.Character:FindFirstChildWhichIsA("Tool"):FindFirstChildOfClass("LocalScript") then
+        OWNER.Character:FindFirstChildWhichIsA("Tool"):FindFirstChild("Handle"):FindFirstChild("ShootBBGUI").Enabled = false
+        OWNER.Character:FindFirstChildWhichIsA("Tool"):FindFirstChildOfClass("LocalScript").Enabled = Bool
+    end
+end
+
+function HiddenBullet()
+    if OWNER.Character:FindFirstChildWhichIsA("Tool") and OWNER.Character:FindFirstChildWhichIsA("Tool"):FindFirstChild("Handle") and OWNER.Character:FindFirstChildWhichIsA("Tool").Activated and KO(TARGET).Value == false and Dead(TARGET).Value == false then
+        MainEvent:FireServer("ShootGun",OWNER.Character:FindFirstChildWhichIsA("Tool"):FindFirstChild("Handle"),getRoot_(OWNER).Position,TARGET.Character:FindFirstChild("Head").Position + (Settings["Player"]["HiddenBullet"] == "Hidden" and Vector3.new(0, -10, 0) or Settings["Player"]["HiddenBullet"] == "Random" and Vector3.new(math.random(-10, 10), math.random(-10, 10), math.random(-10, 10)) or Settings["Player"]["HiddenBullet"] == "Sideway" and Vector3.new(0, 0, math.random(-25, 25)) or Settings["Player"]["HiddenBullet"] == "Backward" and Vector3.new(25, 0, 0) or Vector3.new(0, 0, 0)),TARGET.Character:FindFirstChild("Head"),Vector3.new(0, 0, -1))
+    end
+end
+
+function ZeroVelocity_(X)
+    for i,v in X.Character:GetDescendants() do
+        if v:IsA("BasePart") or v:IsA("MeshPart") or v:IsA("Part") then
+            v.Velocity = Vector3.zero
+            v.AssemblyLinearVelocity = Vector3.zero
+            v.AssemblyAngularVelocity = Vector3.zero
+        end
+    end
+end
+
+function ZeroVelocity___(PATH)
+	PATH.Velocity = Vector3.zero
+	PATH.AssemblyAngularVelocity = Vector3.zero
+	PATH.AssemblyLinearVelocity = Vector3.zero
+end
+
+function StrafeTypes()
+    local moveDir = getHumanoid(TARGET).MoveDirection * Settings["Target"]["Prediction"]
+    if Settings["Target"]["OffsetType"] == "X" then moveDir = Vector3.new(moveDir.X, 0, 0)
+    elseif Settings["Target"]["OffsetType"] == "Y" then moveDir = Vector3.new(0, moveDir.Y, 0) 
+    elseif Settings["Target"]["OffsetType"] == "Z" then moveDir = Vector3.new(0, 0, moveDir.Z) end
+    
+    if Settings["Target"]["StrafeTypes"] == "CFrame" then
+        getRoot_(OWNER).CFrame = CFrame.new(getRoot_(TARGET).Position + moveDir) * CFrame.Angles(0, Settings["Target"]["StrafeSpeed"] * math.pi * Settings["Cache"]["Interger"]["Delta"], 0) * CFrame.new(0, 0, Settings["Target"]["Distance"])
+    elseif Settings["Target"]["StrafeTypes"] == "Velocity" then
+        getRoot_(OWNER).CFrame = CFrame.new(getRoot_(TARGET).Position + moveDir + moveDir * getRoot_(TARGET).Velocity.Magnitude) * CFrame.Angles(0, Settings["Target"]["StrafeSpeed"] * math.pi * Settings["Cache"]["Interger"]["Delta"], 0) * CFrame.new(0, 0, Settings["Target"]["Distance"])
+    elseif Settings["Target"]["StrafeTypes"] == "WalkSpeed" then
+        getRoot_(OWNER).CFrame = CFrame.new(getRoot_(TARGET).Position + moveDir + moveDir * getHumanoid(TARGET).WalkSpeed) * CFrame.Angles(0, Settings["Target"]["StrafeSpeed"] * math.pi * Settings["Cache"]["Interger"]["Delta"], 0) * CFrame.new(0, 0, Settings["Target"]["Distance"])
+    elseif Settings["Target"]["StrafeTypes"] == "Random" then
+        getRoot_(OWNER).CFrame = CFrame.new(getRoot_(TARGET).Position + moveDir + Vector3.new(math.cos(tick() * Settings["Target"]["StrafeSpeed"]) * (Settings["Target"]["Offset"].X + Settings["Target"]["Distance"]) + math.random(-Settings["Target"]["Distance"], Settings["Target"]["Distance"]), Settings["Target"]["Offset"].Y + math.random(-Settings["Target"]["Distance"], Settings["Target"]["Distance"]), math.sin(tick() * Settings["Target"]["StrafeSpeed"]) * (Settings["Target"]["Offset"].Z + Settings["Target"]["Distance"]) + math.random(-Settings["Target"]["Distance"], Settings["Target"]["Distance"]) )) * CFrame.Angles(math.rad(math.random(0, 360)), math.rad(math.random(0, 360)), math.rad(math.random(0, 360)))
+    elseif Settings["Target"]["StrafeTypes"] == "Above" then
+        getRoot_(OWNER).CFrame = CFrame.new(getRoot_(TARGET).Position + moveDir) * CFrame.new(0, Settings["Target"]["Distance"], 0) * CFrame.Angles(0, math.rad((tick() % .1) / .1 * 360), 0)
+    end
+end
+
+function CreateClone(player)
+    if Settings["Visual"]["Visualizer"]["Storage"] then return end
+    if player then
+        player.Character.Archivable = true
+        local Cloned = player.Character:Clone()
+        Settings["Visual"]["Visualizer"]["Storage"] = Cloned
+        Cloned.Parent = workspace
+        for _, v in Cloned:GetChildren() do
+            if v:IsA("BasePart") then
+                v.CanCollide = false
+                v.Material = Enum.Material.Neon
+                v.Color = Settings["Visual"]["Visualizer"]["Color"]
+                v.Anchored = true
+            else
+                v:Destroy()
+            end
+        end
+        if Cloned:FindFirstChild("Head") and Cloned.Head:FindFirstChild("face") then
+            Cloned.Head.face:Destroy()
+        end
+        task.spawn(function()
+            while Settings["Visual"]["Visualizer"]["Storage"] do
+                if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    Settings["Visual"]["Visualizer"]["Storage"]:PivotTo(player.Character.HumanoidRootPart.CFrame)
+                end
+                task.wait()
+            end
+        end)
+    end
+end
+
+function RemoveClone()
+    if Settings["Visual"]["Visualizer"]["Storage"] then
+        Settings["Visual"]["Visualizer"]["Storage"]:Destroy()
+        Settings["Visual"]["Visualizer"]["Storage"] = nil
+    end
+end
+
+function CloneExists()
+    return Settings["Visual"]["Visualizer"]["Storage"] ~= nil
+end
+
+function gplr(String)
+    for i,v in Player:GetPlayers() do
+        if v.Name:lower():sub(1, #String) == String:lower() or v.DisplayName:lower():sub(1, #String) == String:lower() then
+            if v == OWNER then Notify("Cannot Target Yourself") return nil end
+            return v
+        end
+    end
+    return Notify("Failed To Find Target: "..String,3)
+end
+
+function gclosest()
+    local closestPlayer
+    local shortestDistance = math.huge
+    for i, v in Player:GetPlayers() do
+        if v ~= OWNER and v.Character and v.Character:FindFirstChild("Head") and v.Character.Humanoid.Health > 0 and v.Character:FindFirstChild("HumanoidRootPart") then
+            local pos = workspace.CurrentCamera:WorldToViewportPoint(v.Character.Head.Position)
+            local magnitude = (Vector2.new(pos.X, pos.Y) - Vector2.new(OWNER:GetMouse().X, OWNER:GetMouse().Y)).magnitude
+            if magnitude < shortestDistance then
+                closestPlayer = v
+                shortestDistance = magnitude
+            end
+        end
+    end
+    return closestPlayer
+end
+
+function grange()
+    local Body = {}
+
+    table.foreach(Player:GetPlayers(), function(_, v)
+        if v.Character and v ~= OWNER and not table.find(Settings["Player"]["Whitelisted"], v.Name) and v.Character:FindFirstChild("BodyEffects") and v.Character.BodyEffects:FindFirstChild("Defense") and v.Character.BodyEffects:FindFirstChild("BreakingParts") and v:FindFirstChild("DataFolder") and v.DataFolder:FindFirstChild("Information") and KO(v).Value == false and not v.Character:FindFirstChild("GRABBING_CONSTRAINT") and v.Character:FindFirstChild("HumanoidRootPart") and ((v.DataFolder.Information:FindFirstChild("Crew") and v.DataFolder.Information.Crew.Value ~= OWNER.DataFolder.Information.Crew.Value) or not v.DataFolder.Information:FindFirstChild("Crew")) and (v.Character.HumanoidRootPart.Position - getRoot_(OWNER).Position).Magnitude <= 200 then
+            table.insert(Body, v)
+        end
+    end)
+
+    return Body
+end
+
+function gtable()
+    local playersInTable = {}
+    for i, v in Player:GetPlayers() do
+        if v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v ~= OWNER.Name then
+			if v.Character:FindFirstChild('BodyEffects') and v.Character:FindFirstChild('BodyEffects'):FindFirstChild('Defense') and v.Character:FindFirstChild('BodyEffects'):FindFirstChild('BreakingParts') then
+				if v ~= OWNER and v:FindFirstChild('DataFolder') and v:FindFirstChild('DataFolder'):FindFirstChild('Information') then
+                    if KO(v).Value == false and not v.Character:FindFirstChild("GRABBING_CONSTRAINT") then
+                		if (getRoot_(v).Position - getRoot_(OWNER).Position).magnitude < Settings["Cache"]["Interger"]["StickyDistance"] then
+                    		table.insert(playersInTable,v)
+						end
+					end
+                end
+            end
+        end
+    end
+    return playersInTable
+end
+
+function gmouse()
+    local closestPlayer
+    local shortestDistance = math.huge
+    for i, v in Player:GetPlayers() do
+        if v ~= OWNER and v.Character and v.Character:FindFirstChild("Head") then
+            if KO(v).Value == false and not v.Character:FindFirstChild("GRABBING_CONSTRAINT") then
+                local pos = workspace.CurrentCamera:WorldToViewportPoint(v.Character.Head.Position)
+                local magnitude = (Vector2.new(pos.X, pos.Y) - Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)).magnitude
+                if magnitude < shortestDistance then
+                    closestPlayer = v
+                    shortestDistance = magnitude
+                end
+            end
+        end
+    end
+    return closestPlayer
+end
+
+function highlight_target()
+	if TARGET then
+		spawn(function()
+            Notify(TARGET.Name.." | "..TARGET.DisplayName.. " | Found",1)
+		end)
+		spawn(function()
+			for _, Connection in getgenv().TARGET_CONNETION do
+				Connection:Disconnect()
+			end
+		end)
+		spawn(function()
+			pcall(function()
+				if TARGET.Character.Head:FindFirstChild("BloodSplatter") then task.wait(0.01)
+					TARGET.Character.Head:FindFirstChild("BloodSplatter"):Destroy()
+				end
+			end)
+		end)
+        spawn(function()
+			for i,v in Player:GetPlayers() do
+				if v.Name ~= OWNER.Name then
+					if v.Character:FindFirstChild("z") then v.Character:FindFirstChild("z"):Destroy() end
+				end
+			end
+		end)
+        spawn(function()
+			for i,v in OWNER.Character:GetChildren() do
+				if v:IsA("Beam") then
+					v:Destroy()
+				end
+			end
+		end)
+        spawn(function()
+            for i,v in Player:GetPlayers() do
+				if v.Name ~= OWNER.Name then
+					if v.Character.HumanoidRootPart:FindFirstChild("Circle") then v.Character.HumanoidRootPart:FindFirstChild("Circle"):Destroy() end
+				end
+			end
+        end)
+		spawn(function()
+			local Beam = Instance.new("Beam",OWNER.Character)
+			Beam.Brightness = 9e9
+			Beam.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromRGB(255,255,255)),ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255,255,255)),ColorSequenceKeypoint.new(1, Color3.fromRGB(255,255,255))}
+			Beam.LightEmission = 1
+			Beam.TextureMode = Enum.TextureMode.Wrap
+			Beam.TextureSpeed = .1
+			Beam.Attachment0 = OWNER.Character.UpperTorso.BodyBackAttachment
+			Beam.Attachment1 = TARGET.Character.UpperTorso.BodyBackAttachment
+			Beam.Width0 = .1
+			Beam.Width1 = .1
+			Beam.FaceCamera = true
+		end)
+        spawn(function()
+            Emitter(130036784222277,"Circle",getRoot_(TARGET),0)
+        end)
+        spawn(function()
+            if Settings["Player"]["Highlight"] then
+        	    local z = Instance.new("Highlight",TARGET.Character)
+			    z.Name = "z"
+			    z.OutlineTransparency = 0
+			    z.FillTransparency = 1
+			    z.OutlineColor = Settings["Player"]["HighlightColor"]
+            end
+        end)
+		spawn(function()
+            InsertOn(getgenv().TARGET_CONNETION, TARGET.Character.DescendantAdded:Connect(function(v)
+                if tostring(v) == "BloodSplatter" then
+                    if Settings["Player"]["Notify"] then
+                        Notify(Settings["Player"]["NotifyText"] .. " |  " .. TARGET.Name .. " | " .. TARGET.DisplayName, Settings["Player"]["NotifyDuration"])
+                    end
+                    if Settings["Player"]["Hit_Sound"] then
+                        PlaySound(tostring(Settings["Cache"]["Connection"]["SelectedSound"]), Settings["Player"]["Hit_Volume"])
+                    end
+                    if Settings["Player"]["Hit_Effect"] then
+                        HitEffect(TARGET, Settings["Cache"]["Connection"]["SelectedHit"])
+                    end
+                end
+            end))
+            InsertOn(getgenv().TARGET_CONNETION,TARGET.Character.BodyEffects["K.O"]:GetPropertyChangedSignal("Value"):Connect(function()
+                if TARGET.Character.BodyEffects["K.O"].Value == true then
+                    Notify(TARGET.Name.." | "..TARGET.DisplayName.." | Knocked.", 1)
+                else
+                    if TARGET.Character:FindFirstChild("GRABBING_CONSTRAINT") then
+                        Notify(TARGET.Name.." | "..TARGET.DisplayName.." | Grabbed.", 1)
+                    else
+                        Notify(TARGET.Name.." | "..TARGET.DisplayName.." | Alive.", 1)
+                    end
+                end
+            end))
+		end)
+		spawn(function()
+			InsertOn(getgenv().TARGET_CONNETION,Player.PlayerRemoving:Connect(function(plr)
+				if plr.Name == TARGET.Name then
+                    for i,v in TARGET.Character:GetDescendants() do if v.Name == "Circle" then v:Destroy() end end
+					Notify(TARGET.Name.." | "..TARGET.DisplayName.." | Leaved.",30)
+                    ReturnPos()
+                    Subject(OWNER)
+    				TARGET = nil
+				end
+			end))
+		end)
+		spawn(function()
+            InsertOn(getgenv().TARGET_CONNETION,TARGET.CharacterAdded:Connect(function()
+                TARGET.Character:WaitForChild("FULLY_LOADED_CHAR")
+                highlight_target()
+                Notify(TARGET.Name.." | "..TARGET.DisplayName.." | Respawned.", 5)
+                repeat task.wait() until not TARGET.Character:FindFirstChildWhichIsA("ForceField")
+                highlight_target()
+                Notify(TARGET.Name.." | "..TARGET.DisplayName.." | ForceField Deactivated.", 5)
+            end))
+		end)
+	end
+end
+
+function Align(POWER,DAMPLING,TARGET_PART,OWNER_PART,POSITION,ROTATION)
+    if OWNER.Character.BodyEffects.Grabbed.Value ~= nil then
+        if not GrabbedCharacter[TARGET_PART]:FindFirstChildWhichIsA("BodyPosition") and not GrabbedCharacter[TARGET_PART]:FindFirstChildWhichIsA("BodyGyro") then
+            local BP = Instance.new("BodyPosition",GrabbedCharacter[TARGET_PART])
+            BP.MaxForce = Vector3.new(math.huge,math.huge,math.huge)
+            local bg = Instance.new("BodyGyro",GrabbedCharacter[TARGET_PART])
+            bg.maxTorque = Vector3.new(9e9,9e9,9e9)
+            bg.P = 10000
+        end
+        GrabbedCharacter[TARGET_PART].BodyGyro.CFrame = OWNER.Character[OWNER_PART].CFrame*ROTATION
+        GrabbedCharacter[TARGET_PART].BodyPosition.Position = OWNER.Character[OWNER_PART].CFrame*POSITION.Position
+        GrabbedCharacter[TARGET_PART].BodyPosition.P = POWER
+        GrabbedCharacter[TARGET_PART].BodyPosition.D = DAMPLING
+    end
+end
+
+function DestroyPart(PART)
+	if GrabbedCharacter[PART]:FindFirstChildOfClass("BodyGyro") or GrabbedCharacter[PART]:FindFirstChildOfClass("BodyPosition") then
+		GrabbedCharacter[PART]:FindFirstChildOfClass("BodyGyro"):Destroy()
+		GrabbedCharacter[PART]:FindFirstChildOfClass("BodyPosition"):Destroy()
+	end
+end
+
+function Holding()
+    repeat task.wait()
+        Align(10000,175,"UpperTorso","HumanoidRootPart",CFrame.new(0,5,5),CFrame.Angles(0,0,0))
+    until OWNER.Character.BodyEffects.Grabbed.Value == nil or Interval == true
+end
+
+function Grab()
+    if OWNER.Character.BodyEffects.Grabbed.Value then
+		GrabbedCharacter = OWNER.Character.BodyEffects.Grabbed.Value
+		local GrabConstraint = GrabbedCharacter:WaitForChild("GRABBING_CONSTRAINT")
+
+		if not GrabConstraint then return end
+		
+		RopeGrab = GrabConstraint:FindFirstChildOfClass("RopeConstraint")
+		RopeGrab.Length = 1/0
+        Interval = false
+        repeat task.wait()
+            for _, Anim in OWNER.Character.Humanoid:GetPlayingAnimationTracks() do
+                if (Anim.Animation.AnimationId:match("rbxassetid://11075367458")) then
+                    Interval = true
+                    Anim:Stop()
+                end
+            end
+        until Interval == true
+        for _, Class in GrabbedCharacter:GetDescendants() do
+            if Class:IsA("BasePart") then
+                Class.Velocity = Vector3.zero
+                Class.AssemblyAngularVelocity = Vector3.zero
+                Class.AssemblyLinearVelocity = Vector3.zero
+                Class.CanCollide = false
+            end
+        end
+        Interval = false
+        Holding()
+        DestroyPart("UpperTorso")
+    end
+end
+
+for index, _ in Asset["HitAsset"] do
+    table.insert(Settings["Cache"]["Table"]["HitEffect"], index)
+end
+
+for index, _ in Asset["SoundAsset"] do
+    table.insert(Settings["Cache"]["Table"]["HitSound"], index)
+end
+
+Group.Main:AddToggle("SilentAim", {
+    Text = "Enabled",
+    Default = false,
+    Callback = function(v)
+        Settings["SilentAim"]["Enabled"] = v
+        if not v then
+            if Settings["Cache"]["Connection"]["SilentAim"] then
+                Disconnect(Settings["Cache"]["Connection"]["SilentAim"])
+                Settings["Cache"]["Connection"]["SilentAim"] = nil
+                TARGET = nil
+            end
+        end
+    end
+}):AddKeyPicker("SilentAimKeybind", {
+    Default = "C",
+    NoUI = false,
+    Text = "Silent Aim",
+    Mode = "Toggle",
+    Callback = function()
+        xpcall(function()
+            if Settings["SilentAim"]["Enabled"] then
+                if Settings["Cache"]["Connection"]["SilentAim"] then
+                    Disconnect(Settings["Cache"]["Connection"]["SilentAim"])
+                    TARGET = nil
+                    Settings["Cache"]["Connection"]["SilentAim"] = nil
+                else
+                    Settings["Cache"]["Connection"]["SilentAim"] = RunService.RenderStepped:Connect(function()
+                        TARGET = gmouse()
+                    end)
+                end
+            end
+        end, function(err)
+            warn("[Error On Path {SilentAim}] " .. err)
+        end)
+    end
+})
+
+Group.Main:AddToggle("FovCircle", {
+    Text = "Fov",
+    Default = false,
+    Callback = function(v)
+        Settings["Visual"]["Circle"]["Enabled"] = v
+    end
+}):AddColorPicker('FovCircleColor', {
+    Default = Settings["Visual"]["Circle"]["Color"],
+    Title = 'Color',
+    Callback = function(v)
+        Settings["Visual"]["Circle"]["Color"] = v
+    end
+})
+
+Group.Main:AddSlider('FovCircleRadius', {
+    Text = 'Size',
+    Default = Settings["Visual"]["Circle"]["Radius"],
+    Min = 1,
+    Max = 1000,
+    Rounding = 1,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Visual"]["Circle"]["Radius"] = v
+    end
+})
+
+Group.Main:AddSlider('FovCircleThickness', {
+    Text = 'Thickness',
+    Default = Settings["Visual"]["Circle"]["Thickness"],
+    Min = 1,
+    Max = 5,
+    Rounding = 1,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Visual"]["Circle"]["Thickness"] = v
+    end
+})
+
+Group.Target:AddToggle("Target", {
+    Text = "Enabled",
+    Default = false,
+    Callback = function(v)
+        Settings["Target"]["Enabled"] = v
+    end
+}):AddKeyPicker("TargetKeybind", {
+    Default = "Q",
+    NoUI = false,
+    Text = "Target",
+    Mode = "Toggle",
+    Callback = function()
+        xpcall(function()
+            if Settings["Target"]["Enabled"] then
+                TARGET = gclosest()
+                highlight_target()
+            end
+        end, function(err)
+            warn("[Error On Path {Target}] " .. err)
+        end)
+    end
+})
+
+Group.Target:AddInput('TargetBox', {
+    Default = '',
+    Numeric = false,
+    Finished = true,
+    Text = 'Find Target',
+    Placeholder = '',
+    Callback = function(v)
+        TARGET = gplr(v)
+        highlight_target()
+    end
+})
+
+Group.Target:AddToggle("Sticky", {
+    Text = "Sticky",
+    Default = false,
+    Callback = function(v)
+        Settings["Player"]["Sticky"] = v
+        if not v then
+            Disconnect(Settings["Cache"]["Connection"]["Sticky"])
+            Settings["Cache"]["Connection"]["Sticky"] = nil
+        end
+    end
+}):AddKeyPicker("StickyKeybind", {
+    Default = "B",
+    NoUI = false,
+    Text = "Sticky",
+    Mode = "Toggle",
+    Callback = function(v)
+        xpcall(function()
+            if v and TARGET then
+                if Settings["Player"]["Sticky"] then
+                    Settings["Cache"]["Connection"]["Sticky"] = RunService.RenderStepped:Connect(function()
+                        local players = gtable()
+                        if #players > 0 then
+                            for _, plr in players do
+                                if plr and plr ~= OWNER and plr.Character then
+                                    if OWNER.Character:FindFirstChildOfClass("Tool") and OWNER.Character:FindFirstChildOfClass("Tool"):FindFirstChild("Handle") then
+                                        MainEvent:FireServer("ShootGun", OWNER.Character:FindFirstChildOfClass("Tool"):FindFirstChild("Handle"),getRoot_(OWNER).Position - Vector3.new(0, 10, 0),plr.Character.Head.Position - Vector3.new(0, 25, 0), plr.Character.Head, Vector3.new(0, 0, -1))
+                                    end
+                                end
+                            end
+                        end
+                    end)
+                end
+            else
+                Disconnect(Settings["Cache"]["Connection"]["Sticky"])
+                Settings["Cache"]["Connection"]["Sticky"] = nil
+            end
+        end, function(err)
+            warn("[Error On Path {Sticky}] " .. err)
+        end)
+    end
+})
+
+Group.Target:AddToggle("Spectate", {
+    Text = "Spectate",
+    Default = false,
+    Callback = function(v)
+        Settings["Cache"]["Connection"]["Spectate"] = v
+        Disconnect(Settings["Target"]["Spectate"])
+    end
+}):AddKeyPicker("SpectateKeybind", {
+    Default = "H",
+    NoUI = false,
+    Text = "Spectate",
+    Mode = "Toggle",
+    Callback = function()
+        xpcall(function()
+            if TARGET then
+                if Settings["Cache"]["Connection"]["Spectate"] then
+                    Settings["Target"]["Spectate"] = not Settings["Target"]["Spectate"]
+                    if Settings["Target"]["Spectate"] then
+                        task.spawn(function()
+                            repeat RunService.Heartbeat:Wait()
+                                Subject(TARGET)
+                            until not Settings["Target"]["Spectate"]
+                            Subject(OWNER)
+                        end)
+                    else
+                        Subject(OWNER)
+                    end
+                end
+            end
+        end, function(err)
+            warn("[Error On Path {Spectate}] " .. err)
+        end)
+    end
+})
+
+Group.Target:AddToggle("StompKnocked", {
+    Text = "Stomp Knocked Target",
+    Default = false,
+    Callback = function(v)
+        OldPos()
+        if v then
+            Settings["Cache"]["Connection"]["Stomp"] = RunService.Heartbeat:Connect(function()
+                if OWNER.Character then
+                    if KO(TARGET).Value and not Dead(TARGET).Value then
+                        getRoot_(OWNER).CFrame = CFrame.new(TARGET.Character.UpperTorso.Position) * CFrame.new(0,3.2,0)
+                    elseif Dead(TARGET).Value then
+                        ReturnPos()
+                    end
+                else
+                    ReturnPos()
+                end
+                MainEvent:FireServer("Stomp")
+            end)
+        else
+            Disconnect(Settings["Cache"]["Connection"]["Stomp"])
+            task.wait(0.1)
+            ReturnPos()
+        end
+    end
+})
+
+Group.Target:AddToggle("Autokill", {
+    Text = "Autokill",
+    Default = false,
+    Callback = function(v)
+        if v then
+            OldPos()
+            Settings["Target"]["Autokill"] = RunService.Heartbeat:Connect(function()
+                pcall(function()
+                if KO(TARGET).Value == false then
+                    if OWNER.Character:FindFirstChild("[Rifle]") then
+                        if OWNER.Character:FindFirstChildOfClass("Tool").Ammo.Value < 3 then
+                            MainEvent:FireServer("Reload",OWNER.Character:FindFirstChildWhichIsA("Tool"))
+                        end
+                        HiddenBullet()
+                    elseif OWNER.Character:FindFirstChildOfClass("Tool") and not OWNER.Character:FindFirstChild("[Rifle]") and OWNER.Character:FindFirstChildOfClass("Tool"):FindFirstChild("Ammo") then
+                        HiddenBullet()
+                        Reload()
+                    end
+                    if not TARGET.Character:FindFirstChildWhichIsA("ForceField") or OWNER.Character:FindFirstChild("[Rifle]") then
+                        StrafeTypes()
+                    else
+                        getRoot_(OWNER).CFrame = CFrame.new(math.random(-5000,5000), 0,0)
+                    end
+                else
+                    spawn(function()
+                    if OWNER.Character:FindFirstChild("[Rifle]") then
+                        task.wait(.3)
+                        MainEvent:FireServer("Reload",OWNER.Character:FindFirstChildWhichIsA("Tool"))
+                        task.wait(.1)
+                        OWNER.Character:FindFirstChild("[Rifle]").Parent = OWNER.Backpack
+                        TARGET.CharacterAdded:wait()
+                        task.wait(.2)
+                        OWNER.Backpack:FindFirstChild("[Rifle]").Parent = OWNER.Character
+                    end
+                end)
+                    if Dead(TARGET).Value == false then
+                        getRoot_(OWNER).CFrame = CFrame.new(TARGET.Character.UpperTorso.Position) * CFrame.new(0,3.2,0)
+                        MainEvent:FireServer("Stomp")
+                    else
+                        getRoot_(OWNER).CFrame = CFrame.new(math.random(-5000,5000), 0,0)
+                        Subject(OWNER)
+                    end
+                end
+                ZeroVelocity___(getRoot_(OWNER))
+                Subject(TARGET)
+            end)
+            end)
+        else
+            Disconnect(Settings["Target"]["Autokill"])
+            task.wait(.2)
+            ReturnPos()
+            Subject(OWNER)
+        end
+    end
+})
+
+Group.Target:AddToggle("Limit", {
+    Text = "Limit Distance",
+    Default = false,
+    Callback = function(v)
+        Settings["Cache"]["Interger"]["StickyDistance"] = 250
+    end
+})
+
+Group.Target:AddSlider('Sticky_Distance', {
+    Text = 'Max Distance',
+    Default = Settings["Cache"]["Interger"]["StickyDistance"],
+    Min = 1,
+    Max = 250,
+    Rounding = 1,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Cache"]["Interger"]["StickyDistance"] = v
+    end
+})
+
+Group.Target:AddButton({
+    Text = 'Teleport',
+    Func = function()
+        if TARGET then
+            getRoot_(OWNER).CFrame = getRoot_(TARGET).CFrame*CFrame.new(0,0,5)
+        end
+    end,
+    DoubleClick = false
+})
+
+Group.Strafe:AddToggle("Strafe", {
+    Text = "Enabled",
+    Default = false,
+    Callback = function(v)
+        Settings["Target"]["Strafe"] = v
+        Disconnect(Settings["Cache"]["Connection"]["Strafe"])
+        RemoveClone()
+        Invis(OWNER.Character,false)
+        Pos = nil
+    end
+}):AddKeyPicker("StrafeKeybind", {
+    Default = "T",
+    NoUI = false,
+    Text = "Strafe",
+    Mode = "Toggle",
+    Callback = function()
+        xpcall(function()
+            OldPos()
+            if Settings["Target"]["Strafe"] and TARGET then
+                if Settings["Cache"]["Connection"]["Strafe"] then  Settings["Cache"]["Connection"]["Strafe"]:Disconnect()  Settings["Cache"]["Connection"]["Strafe"] = nil
+                    RemoveClone()
+                    Invis(OWNER.Character,false)
+                    Subject(OWNER)
+                    ReturnPos()
+                else Settings["Cache"]["Connection"]["Strafe"] = RunService.Heartbeat:Connect(function()
+                        if not CloneExists() then
+                            CreateClone(OWNER)
+                        end
+                        Invis(OWNER.Character,true)
+                        ZeroVelocity_(OWNER)
+                        Subject(TARGET)
+                        StrafeTypes()
+                        HiddenBullet()
+                    end)
+                end
+            end
+        end, function(err)
+            warn("[Error On Path {Strafe}] " .. err)
+        end)
+    end
+})
+
+Group.Strafe:AddSlider('StrafeSpeed', {
+    Text = 'Unit',
+    Default = Settings["Target"]["StrafeSpeed"],
+    Min = 1,
+    Max = 5,
+    Rounding = 1,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Target"]["StrafeSpeed"] = v
+    end
+})
+
+Group.Strafe:AddSlider('StrafeOffset', {
+    Text = 'Offset',
+    Default = Settings["Target"]["Distance"],
+    Min = 5,
+    Max = 500,
+    Rounding = 1,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Target"]["Distance"] = v
+    end
+})
+
+Group.Strafe:AddSlider('StrafePrediction', {
+    Text = 'Prediction',
+    Default = Settings["Target"]["Prediction"],
+    Min = 1,
+    Max = 25,
+    Rounding = 1,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Target"]["Prediction"] = v
+    end
+})
+
+Group.Strafe:AddDropdown('StrafeTypes', {
+    Values = {"CFrame", "Velocity", "WalkSpeed", "Random", "Above"},
+    Default = 1,
+    Multi = false,
+    Text = 'Strafe Type',
+    Callback = function(v)
+        Settings["Target"]["StrafeTypes"] = v
+    end
+})
+
+Group.Strafe:AddDropdown('StrafeOffsetType', {
+    Values = {"X", "Y", "Z"},
+    Default = 1,
+    Multi = true,
+    Text = 'Offset Type',
+    Callback = function(v)
+        Settings["Target"]["OffsetType"] = v
+    end
+})
+
+Group.Bullet:AddToggle("BulletTP", {
+    Text = "Bullet TP",
+    Default = false,
+    Callback = function(v)
+        Settings["Player"]["BulletTP"] = v
+    end
+})
+
+Group.Bullet:AddToggle("KillAura", {
+    Text = "Kill Aura",
+    Default = false,
+    Callback = function(v)
+        Settings["Player"]["KillAura"] = v
+    end
+})
+
+Group.Bullet:AddInput('WhitelistBox', {
+    Default = '',
+    Numeric = false,
+    Finished = true,
+    Text = 'Whitelist/Unwhitelist',
+    Placeholder = '',
+    Callback = function(v)
+        TARGET = gplr(v)
+        if TARGET then
+            if table.find(Settings["Player"]["Whitelisted"], TARGET.Name) then
+                table.remove(Settings["Player"]["Whitelisted"], table.find(Settings["Player"]["Whitelisted"], TARGET.Name))
+				Notify(TARGET.Name .. " | " .. TARGET.DisplayName.." | Unwhitelist.",5)
+            else
+                table.insert(Settings["Player"]["Whitelisted"], TARGET.Name)
+				Notify(TARGET.Name .. " | " .. TARGET.DisplayName.." | Whitelisted.",5)
+            end
+        end
+    end
+})
+
+Group.Bullet:AddDropdown('HiddenBullet', {
+    Values = {"Normal", "Hidden", "Random", "Sideway", "Backward"},
+    Default = 1,
+    Multi = false,
+    Text = 'Hidden Bullet Mode',
+    Callback = function(v)
+        Settings["Player"]["HiddenBullet"] = v
+    end
+})
+
+Group.Modifier:AddToggle("No_Shoot_Animation", {
+    Text = "No Shoot Animation",
+    Default = false,
+    Callback = function(v)
+        if v then
+            Settings["Player"]["NoShoot"] = RunService.Heartbeat:Connect(function()
+                AnimStop(2809413000) AnimStop(2809419094)
+            end)
+        else
+            Disconnect(Settings["Player"]["NoShoot"])
+        end
+    end
+})
+
+Group.Modifier:AddToggle("Auto_Shoot", {
+    Text = "Auto Shoot",
+    Default = false,
+    Callback = function(v)
+        if v and TARGET then
+            Settings["Player"]["AutoShoot"] = RunService.Stepped:Connect(function() 
+                HiddenBullet()
+            end)
+        else
+            Disconnect(Settings["Player"]["AutoShoot"])
+        end
+    end
+})
+
+Group.Modifier:AddToggle("Auto_Reload", {
+    Text = "Auto Reload",
+    Default = false,
+    Callback = function(v)
+        if v then
+            Settings["Player"]["AutoReload"] = RunService.Stepped:Connect(function() 
+                Reload() 
+            end)
+        else
+            Disconnect(Settings["Player"]["AutoReload"])
+        end
+    end
+})
+
+Group.Modifier:AddSlider("Recoil_Shake", {
+    Text = "Recoil Percentage",
+    Default = Settings["Player"]["Recoil"],
+    Min = 0,
+    Max = 100,
+    Rounding = 0,
+    Suffix = "%",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Player"]["Recoil"] = v
+    end
+})
+
+Group.Misc:AddButton({
+    Text = "Copy Jobid",
+    Func = function()
+        setclipboard(game.JobId)
+        Notify("Copied Jobid", 1)
+    end,
+})
+
+Group.Misc:AddButton({
+    Text = "Copy TeleportService",
+    Func = function()
+        setclipboard("game:GetService('TeleportService'):TeleportToPlaceInstance(" .. game.PlaceId .. ", \"" .. game.JobId .. "\", game.Players.LocalPlayer)")
+        Notify("Copied TeleportService", 1)
+    end,
+})
+
+Group.Misc:AddButton({
+    Text = "Copy GameLauncher",
+    Func = function()
+        setclipboard('Roblox.GameLauncher.joinGameInstance(' .. game.PlaceId .. ', "' .. game.JobId .. '")')
+        Notify("Copied GameLauncher", 1)
+    end,
+})
+
+Group.Misc:AddButton({
+    Text = "Copy Username",
+    Func = function()
+        setclipboard(TARGET.Name)
+        Notify("Copied Username: " .. TARGET.Name, 1)
+    end,
+})
+
+Group.Misc:AddButton({
+    Text = "Copy UserID",
+    Func = function()
+        setclipboard(TARGET.UserId)
+        Notify("Copied UserID: " .. TARGET.UserId, 1)
+    end,
+})
+
+Group.Misc:AddButton({
+    Text = "Copy Boombox ID",
+    Func = function()
+	    local String = string.split(tostring(TARGET.Character:WaitForChild("LowerTorso"):FindFirstChild("BOOMBOXSOUND").SoundId), "//")
+        setclipboard(tostring(String[2]))
+        Notify("Copied Boombox ID", 1)
+    end,
+})
+
+Group.Misc:AddButton({
+    Text = "Copy Ringtone ID",
+    Func = function()
+	    local String = string.split(tostring(TARGET.Character:WaitForChild("LowerTorso"):FindFirstChild("PhoneRing").SoundId), "//")
+        setclipboard(tostring(String[2]))
+        Notify("Copied Ringtone ID", 1)
+    end,
+})
+
+Group.Misc:AddButton({
+    Text = "Rejoin",
+    Func = function()
+	    if #Player:GetPlayers() <= 1 then
+	    	OWNER:Kick("YOU HAVE BEEN BANNED.")
+	    	task.wait()
+	    	game:GetService('TeleportService'):Teleport(game.PlaceId,OWNER)
+	    else
+	    	game:GetService('TeleportService'):TeleportToPlaceInstance(game.PlaceId,game.JobId,OWNER)
+	    end
+    end,
+})
+
+Group.Misc:AddButton({
+    Text = "Force Reset",
+    Func = function()
+        getHumanoid(OWNER):ChangeState(15)
+    end,
+})
+
+Group.Misc:AddButton({
+    Text = "Long Chat",
+    Func = function()
+        ReplicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer(` ৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌৌ`,"All")
+    end,
+})
+
+Group.Player:AddToggle("WalkSpeed", {
+    Text = "Walk Speed",
+    Default = false,
+    Callback = function(v)
+        if v then
+            Settings["Cache"]["Connection"]["WalkSpeed"] = RunService.RenderStepped:Connect(function()
+                getHumanoid(OWNER).WalkSpeed = Settings["Player"]["WalkSpeedUnit"]
+            end)
+        else
+            Disconnect(Settings["Cache"]["Connection"]["WalkSpeed"])
+        end
+    end
+})
+
+Group.Player:AddToggle("JumpPower", {
+    Text = "Jump Power",
+    Default = false,
+    Callback = function(v)
+        if v then
+            Settings["Cache"]["Connection"]["JumpPower"] = RunService.RenderStepped:Connect(function()
+                getHumanoid(OWNER).JumpPower = Settings["Player"]["JumpPowerUnit"]
+            end)
+        else
+            Disconnect(Settings["Cache"]["Connection"]["JumpPower"])
+        end
+    end
+})
+
+Group.Player:AddToggle("Height", {
+    Text = "Hip Height",
+    Default = false,
+    Callback = function(v)
+        if v then
+            Settings["Cache"]["Connection"]["HipHeight"] = RunService.RenderStepped:Connect(function()
+                getHumanoid(OWNER).HipHeight = Settings["Player"]["HipHeightUnit"]
+            end)
+        else
+            Disconnect(Settings["Cache"]["Connection"]["HipHeight"])
+            getHumanoid(OWNER).HipHeight = 2
+        end
+    end
+})
+
+Group.Player:AddSlider("WalkSpeedUnit", {
+    Text = "Walk Speed",
+    Default = Settings["Player"]["WalkSpeedUnit"],
+    Min = 16,
+    Max = 1000,
+    Rounding = 1,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Player"]["WalkSpeedUnit"] = v
+    end
+})
+
+Group.Player:AddSlider("JumpPowerUnit", {
+    Text = "Jump Power",
+    Default = Settings["Player"]["JumpPowerUnit"],
+    Min = 50,
+    Max = 1000,
+    Rounding = 1,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Player"]["JumpPowerUnit"] = v
+    end
+})
+
+Group.Player:AddSlider("HipHeightUnit", {
+    Text = "Hip Height",
+    Default = Settings["Player"]["HipHeightUnit"],
+    Min = 2,
+    Max = 25,
+    Rounding = 1,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Player"]["HipHeightUnit"] = v
+    end
+})
+
+Group.Character:AddToggle("Noclip", {
+    Text = "Noclip",
+    Default = false,
+    Callback = function(v)
+        Settings["Player"]["Noclip"] = v
+        if not v then
+            Disconnect(Settings["Cache"]["Connection"]["Noclip"])
+            Collision(OWNER,true)
+        end
+    end
+}):AddKeyPicker("NoclipKeybind", {
+    Default = "X",
+    Text = "Noclip",
+    Mode = "Toggle",
+    Callback = function(v)
+        if v and Settings["Player"]["Noclip"] then
+            Settings["Cache"]["Connection"]["Noclip"] = RunService.RenderStepped:Connect(function()
+                Collision(OWNER,false)
+            end)
+        else
+            Disconnect(Settings["Cache"]["Connection"]["Noclip"])
+            Collision(OWNER,true)
+        end
+    end
+})
+
+Group.Character:AddToggle("Flight", {
+    Text = "Flight",
+    Default = false,
+    Callback = function(v)
+        Settings["Player"]["Fly"] = v
+        if not v then
+            Destroy(workspace,"Core")
+            Disconnect(Settings["Cache"]["Connection"]["Fly"])
+            getHumanoid(OWNER).PlatformStand = false
+        end
+    end
+}):AddKeyPicker("FlightKeybind", {
+    Default = "X",
+    Text = "Flight",
+    Mode = "Toggle",
+    Callback = function(v)
+        if v and Settings["Player"]["Fly"] then
+            getHumanoid(OWNER).PlatformStand = true
+            local Core = CoreBypass()
+            local Vel = Instance.new("BodyVelocity", Core)
+            Vel.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+            Vel.Velocity = Vector3.zero
+            local Gyro = Instance.new("BodyGyro", Core)
+            Gyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+            Gyro.P = 9e4
+            Gyro.CFrame = Core.CFrame
+            Settings["Cache"]["Connection"]["Fly"] = RunService.RenderStepped:Connect(function()
+                if UserInputService:GetFocusedTextBox() then return end
+                ZeroVelocity___(getRoot_(OWNER))
+                local dir = Vector3.zero
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += workspace.CurrentCamera.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= workspace.CurrentCamera.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= workspace.CurrentCamera.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += workspace.CurrentCamera.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.yAxis end
+                Vel.Velocity = dir * Settings["Player"]["FlySpeed"]
+                Gyro.CFrame = workspace.CurrentCamera.CFrame
+            end)
+        else
+            getHumanoid(OWNER).PlatformStand = false
+            Destroy(workspace,"Core")
+            Disconnect(Settings["Cache"]["Connection"]["Fly"])
+        end
+    end
+})
+
+Group.Character:AddToggle("Velocity", {
+    Text = "Velocity",
+    Default = false,
+    Callback = function(v)
+        Settings["Player"]["Velocity"] = v
+        if not v then
+            Disconnect(Settings["Cache"]["Connection"]["Velocity"])
+        end
+    end
+}):AddKeyPicker("VelocityKeybind", {
+    Default = "LeftAlt",
+    Text = "Velocity",
+    Mode = "Toggle",
+    Callback = function(v)
+        if v and Settings["Player"]["Velocity"] then
+            Settings["Cache"]["Connection"]["Velocity"] = RunService.RenderStepped:Connect(function()
+                if getRoot_(OWNER) and OWNER.Character and OWNER.Character:FindFirstChildOfClass("Humanoid") then
+                    getRoot_(OWNER).AssemblyLinearVelocity = Vector3.new(OWNER.Character:FindFirstChildOfClass("Humanoid").MoveDirection.X * Settings["Player"]["VelocitySpeed"],getRoot_(OWNER).AssemblyLinearVelocity.Y,OWNER.Character:FindFirstChildOfClass("Humanoid").MoveDirection.Z * Settings["Player"]["VelocitySpeed"])
+                end
+            end)
+        else
+            Disconnect(Settings["Cache"]["Connection"]["Velocity"])
+        end
+    end
+})
+
+Group.Character:AddSlider("FlightSpeed", {
+    Text = "Fly",
+    Default = Settings["Player"]["FlySpeed"],
+    Min = 10,
+    Max = 5000, 
+    Rounding = 0,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Player"]["FlySpeed"] = v
+    end
+})
+
+Group.Character:AddSlider("VelocitySpeed", {
+    Text = "Velocity",
+    Default = Settings["Player"]["VelocitySpeed"],
+    Min = 1,
+    Max = 1000,
+    Rounding = 0,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Player"]["VelocitySpeed"] = v
+    end
+})
+
+Group.Protection:AddToggle("AntiVoid", {
+    Text = "Anti Void",
+    Default = false,
+    Callback = function(v)
+        if v then
+            workspace.FallenPartsDestroyHeight = -2^203
+        else
+            workspace.FallenPartsDestroyHeight = -500
+        end
+    end
+})
+
+local antiStompActive = false
+local flashbackActive = false
+local lastPosition = nil
+
+local function startAntiStomp()
+    local RunService = game:GetService("RunService")
+
+    local function checkAndKill()
+        local chr = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local hum = chr:WaitForChild("Humanoid", 5)
+        local bodyEffects = chr:WaitForChild("BodyEffects", 5)
+
+        if not bodyEffects or not hum then
+            warn("BodyEffects or Humanoid not found in the character!")
+            return
+        end
+
+        local koValue = bodyEffects:WaitForChild("K.O", 5)
+        if not koValue then
+            warn("K.O value not found!")
+            return
+        end
+
+        local connection
+        connection = RunService.Heartbeat:Connect(function()
+            if not antiStompActive then
+                connection:Disconnect()
+                return
+            end
+
+            if koValue.Value == true and hum.Health > 0 then
+                if flashbackActive then
+                    lastPosition = chr:GetPrimaryPartCFrame()
+                end
+                hum.Health = 0
+            end
+        end)
+    end
+
+    checkAndKill()
+
+    LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+        if antiStompActive then
+            checkAndKill()
+
+            if flashbackActive and lastPosition then
+                local rootPart = newCharacter:WaitForChild("HumanoidRootPart", 5)
+                if rootPart then
+                    while (rootPart.Position - lastPosition.Position).Magnitude > 5 do
+                        rootPart.CFrame = lastPosition
+                        task.wait()
+                    end
+                end
+                lastPosition = nil
+            end
+        end
+    end)
+end
+
+Group.Protection:AddToggle('AntiStomp', {
+    Text = 'Anti Stomp',
+    Default = false,
+    Callback = function(state)
+        antiStompActive = state
+        if state then
+            startAntiStomp()
+        end
+    end,
+})
+
+Group.Protection:AddToggle('Flashback', {
+    Text = 'Flashback',
+    Default = false,
+    Callback = function(state)
+        flashbackActive = state
+    end,
+})
+Group.Protection:AddToggle("AutoStomp", {
+    Text = "Auto Stomp",
+    Default = false,
+    Callback = function(v)
+        if v then
+            Settings["Cache"]["Connection"]["AutoStomp"] = RunService.Stepped:Connect(function()
+                MainEvent:FireServer("Stomp")
+            end)
+        else
+            Disconnect(Settings["Cache"]["Connection"]["AutoStomp"])
+        end
+    end
+})
+
+Group.Protection:AddToggle("AutoArmor", {
+    Text = "Auto Armor",
+    Default = false,
+    Callback = function(v)
+        local Buying = false
+        if v then
+            Settings["Cache"]["Connection"]["AutoArmor"] = RunService.Heartbeat:Connect(function()
+                if OWNER.Character.BodyEffects.Armor.Value < 100 then
+		            if Buying == false then
+		            	Buying = true
+		            	DLastPos = getRoot_(OWNER).CFrame
+		            	repeat RunService.Heartbeat:Wait()
+                            CustomOffsets(workspace.Ignored.Shop["[High-Medium Armor] - $2513"].Head.CFrame)
+                            fireclickdetector(workspace.Ignored.Shop["[High-Medium Armor] - $2513"].ClickDetector)
+		            	until OWNER.Character.BodyEffects.Armor.Value > 100
+		            	Buying = false
+		            	getRoot_(OWNER).CFrame = DLastPos
+		            end
+	            end
+            end)
+        else
+            Disconnect(Settings["Cache"]["Connection"]["AutoArmor"])
+        end
+    end
+})
+
+Group.Protection:AddToggle("Anti Seat", {
+    Text = "Anti Seat",
+    Default = false,
+    Callback = function(v)
+        for i,v in workspace:GetDescendants() do 
+            if v:IsA("Seat") or v:IsA("VehicleSeat") then 
+                v.CanTouch = not v
+            end 
+        end
+    end
+})
+
+Group.Protection:AddToggle("AutoBlock", {
+    Text = "Auto Block",
+    Default = Settings["Cache"]["Bool"]["Blocking"],
+    Callback = function(v)
+        Settings["Cache"]["Bool"]["Blocking"] = v
+    end
+})
+
+Group.Ragdoll:AddToggle("Ragdoll", {
+    Text = "Enabled",
+    Default = false,
+    Callback = function(v)
+        Settings["Player"]["Ragdoll"] = v
+        if not v then
+            Disconnect(Settings["Cache"]["Connection"]["RagdollMove"])
+            Disconnect(Settings["Cache"]["Connection"]["RagdollJump"])
+            getRoot_(OWNER).Shape = Enum.PartType.Block
+            getRoot_(OWNER).Size = Vector3.new(2, 2, 2)
+            Subject(OWNER)
+            getHumanoid(OWNER).PlatformStand = false
+        end
+    end
+}):AddKeyPicker("RagdollKeybind", {
+    Default = "J",
+    Text = "Ragdoll",
+    Mode = "Toggle",
+    Callback = function(v)
+        if Settings["Player"]["Ragdoll"] then
+            if v then
+                getHumanoid(OWNER).PlatformStand = true
+                getRoot_(OWNER).Shape = Enum.PartType[Settings["Player"]["RagdollType"]]
+                getRoot_(OWNER).RotVelocity = Vector3.zero
+                getRoot_(OWNER).Velocity = Vector3.zero
+                workspace.CurrentCamera.CameraSubject = getRoot_(OWNER)
+                Settings["Cache"]["Connection"]["RagdollMove"] = RunService.RenderStepped:Connect(function(delta)
+                    getRoot_(OWNER).Size = Vector3.new(5, 5, 5)
+                    if UserInputService:IsKeyDown("W") then
+                        getRoot_(OWNER).RotVelocity -= workspace.CurrentCamera.CFrame.RightVector * delta * Settings["Player"]["RagdollSpeed"]
+                    end
+                    if UserInputService:IsKeyDown("A") then
+                        getRoot_(OWNER).RotVelocity -= workspace.CurrentCamera.CFrame.LookVector * delta * Settings["Player"]["RagdollSpeed"]
+                    end
+                    if UserInputService:IsKeyDown("S") then
+                        getRoot_(OWNER).RotVelocity += workspace.CurrentCamera.CFrame.RightVector * delta * Settings["Player"]["RagdollSpeed"]
+                    end
+                    if UserInputService:IsKeyDown("D") then
+                        getRoot_(OWNER).RotVelocity += workspace.CurrentCamera.CFrame.LookVector * delta * Settings["Player"]["RagdollSpeed"]
+                    end
+                end)
+    
+                Settings["Cache"]["Connection"]["RagdollJump"] = UserInputService.JumpRequest:Connect(function()
+                    local result = workspace:Raycast(getRoot_(OWNER).Position, Vector3.new(0, -(getRoot_(OWNER).Size.Y / 2 + 0.3), 0), RaycastParams.new())
+                    if result then
+                        getRoot_(OWNER).Velocity = getRoot_(OWNER).Velocity + Vector3.new(0, 60, 0)
+                    end
+                end)
+            else
+                Disconnect(Settings["Cache"]["Connection"]["RagdollMove"])
+                Disconnect(Settings["Cache"]["Connection"]["RagdollJump"])
+                getRoot_(OWNER).Shape = Enum.PartType.Block
+                getRoot_(OWNER).Size = Vector3.new(2, 2, 2)
+                Subject(OWNER)
+                getHumanoid(OWNER).PlatformStand = false
+            end
+        end
+    end
+})
+
+Group.Ragdoll:AddSlider("RagdollSpeed", {
+    Text = "Speed",
+    Default = Settings["Player"]["RagdollSpeed"],
+    Min = 1,
+    Max = 100,
+    Rounding = 1,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Player"]["RagdollSpeed"] = v
+        if Settings["Player"]["Ragdoll"] and Settings["Cache"]["Connection"]["RagdollMove"] then end
+    end
+})
+
+Group.Ragdoll:AddDropdown("RagdollType", {
+    Values = { 'Ball', 'Cylinder' },
+    Default = 1,
+    Multi = false,
+    Text = "Ragdoll Type",
+    Callback = function(v)
+        Settings["Player"]["RagdollType"] = v
+        if Settings["Player"]["Ragdoll"] then
+            getRoot_(OWNER).Shape = Enum.PartType[v]
+        end
+    end
+})
+
+Group.Esp:AddToggle("Esp", {
+    Text = "Enable",
+    Default = false,
+    Callback = function(v)
+        ESPLibrary.teamSettings.enemy.enabled = v
+    end
+})
+
+Group.Esp:AddToggle("Names", {
+    Text = "Names",
+    Default = false,
+    Callback = function(v)
+        ESPLibrary.teamSettings.enemy.name = v
+    end
+}):AddColorPicker("NameColor", {
+    Default = Color3.fromRGB(255, 255, 255),
+    Title = "Name Color",
+    Callback = function(v)
+        ESPLibrary.teamSettings.enemy.nameColor = { v, 1 }
+    end
+})
+
+Group.Esp:AddToggle("Box", {
+    Text = "Box",
+    Default = false,
+    Callback = function(v)
+        ESPLibrary.teamSettings.enemy.box = v
+    end
+}):AddColorPicker("BoxColor", {
+    Default = Color3.fromRGB(255, 255, 255),
+    Title = "Box Color",
+    Callback = function(v)
+        ESPLibrary.teamSettings.enemy.boxColor = { v, 1 }
+    end
+})
+
+Group.Esp:AddToggle("3D Box", {
+    Text = "3D Box",
+    Default = false,
+    Callback = function(v)
+        ESPLibrary.teamSettings.enemy.box3d = v
+    end
+}):AddColorPicker("Box3DColor", {
+    Default = Color3.fromRGB(255, 255, 255),
+    Title = "3D Box Color",
+    Callback = function(v)
+        ESPLibrary.teamSettings.enemy.box3dColor = { v, 1 }
+    end
+})
+
+Group.Esp:AddToggle("Health", {
+    Text = "Health",
+    Default = false,
+    Callback = function(v)
+        ESPLibrary.teamSettings.enemy.healthBar = v
+    end
+}):AddColorPicker("HealthColor", {
+    Default = Color3.fromRGB(255, 255, 255),
+    Title = "Health Color",
+    Callback = function(v)
+        ESPLibrary.teamSettings.enemy.healthBarColor = { v, 1 }
+    end
+})
+
+Group.Esp:AddToggle("Distance", {
+    Text = "Distance",
+    Default = false,
+    Callback = function(v)
+        ESPLibrary.teamSettings.enemy.distance = v
+    end
+}):AddColorPicker("DistanceColor", {
+    Default = Color3.fromRGB(255, 255, 255),
+    Title = "Distance Color",
+    Callback = function(v)
+        ESPLibrary.teamSettings.enemy.distanceColor = { v, 1 }
+    end
+})
+
+Group.Esp:AddToggle("Tracer", {
+    Text = "Tracer",
+    Default = false,
+    Callback = function(v)
+        ESPLibrary.teamSettings.enemy.tracer = v
+    end
+}):AddColorPicker("TracerColor", {
+    Default = Color3.fromRGB(255, 255, 255),
+    Title = "Tracer Color",
+    Callback = function(v)
+        ESPLibrary.teamSettings.enemy.tracerColor = { v, 1 }
+    end
+})
+
+Group.Esp:AddToggle("Weapon", {
+    Text = "Weapon",
+    Default = false,
+    Callback = function(v)
+        ESPLibrary.teamSettings.enemy.weapon = v
+    end
+}):AddColorPicker("WeaponColor", {
+    Default = Color3.fromRGB(255, 255, 255),
+    Title = "Weapon Color",
+    Callback = function(v)
+        ESPLibrary.teamSettings.enemy.weaponColor = { v, 1 }
+    end
+})
+
+Group.Esp:AddToggle("Arrow", {
+    Text = "Arrow",
+    Default = false,
+    Callback = function(v)
+        ESPLibrary.teamSettings.enemy.offScreenArrow = v
+    end
+}):AddColorPicker("ArrowColor", {
+    Default = Color3.fromRGB(255, 255, 255),
+    Title = "Arrow Color",
+    Callback = function(v)
+        ESPLibrary.teamSettings.enemy.arrowColor = { v, 1 }
+    end
+})
+
+Group.Esp:AddDropdown("TracerType", {
+    Values = { "Bottom", "Middle", "Top" },
+    Default = 1,
+    Multi = false,
+    Text = "Tracer Type",
+    Callback = function(v)
+        ESPLibrary.teamSettings.enemy.tracerOrigin = v
+    end
+})
+
+Group.Notify:AddToggle("Notify", {
+    Text = "Enable",
+    Default = false,
+    Callback = function(v)
+        Settings["Player"]["Notify"] = v
+    end
+})
+
+Group.Notify:AddSlider("NotifyDuration", {
+    Text = "Duration",
+    Default = Settings["Player"]["NotifyDuration"],
+    Min = 0,
+    Max = 10,
+    Rounding = 1,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Player"]["NotifyDuration"] = v
+    end
+})
+
+Group.Notify:AddInput('NotifyText', {
+    Default = Settings["Player"]["NotifyText"],
+    Numeric = false,
+    Finished = true,
+    Text = 'Custom Notify',
+    Placeholder = '',
+    Callback = function(v)
+        Settings["Player"]["NotifyText"] = v
+    end
+})
+
+Group.Lighting:AddToggle("Ambient", {
+    Text = "Ambient",
+    Default = false,
+    Callback = function(v)
+        Settings["Visual"]["Ambient"] = v
+        if v then
+            Lighting.Ambient = Settings["Visual"]["AmbientSelected"]
+        else
+            Lighting.Ambient = OldAmbient
+        end
+    end
+}):AddColorPicker("AmbientColor", {
+    Default = Color3.fromRGB(255,255,255),
+    Title = "Ambient Color",
+    Callback = function(v)
+        Settings["Visual"]["AmbientSelected"] = v
+        if Settings["Visual"]["Ambient"] then
+            Lighting.Ambient = v
+        end
+    end
+})
+
+Group.Lighting:AddToggle("ColorShiftBottom", {
+    Text = "Color Shift Bottom",
+    Default = false,
+    Callback = function(v)
+        Settings["Visual"]["ColorShiftBottom"] = v
+        if v then
+            Lighting.ColorShift_Bottom = Settings["Visual"]["ColorShiftBottomSelected"]
+        else
+            Lighting.ColorShift_Bottom = OldColorShiftBottom
+        end
+    end
+}):AddColorPicker("ColorShiftBottomPicker", {
+    Default = Color3.fromRGB(255,255,255),
+    Title = "Color Shift Bottom",
+    Callback = function(v)
+        Settings["Visual"]["ColorShiftBottomSelected"] = v
+        if Settings["Visual"]["ColorShiftBottom"] then
+            Lighting.ColorShift_Bottom = v
+        end
+    end
+})
+
+Group.Lighting:AddToggle("ColorShiftTop", {
+    Text = "Color Shift Top",
+    Default = false,
+    Callback = function(v)
+        Settings["Visual"]["ColorShiftTop"] = v
+        if v then
+            Lighting.ColorShift_Top = Settings["Visual"]["ColorShiftTopSelected"]
+        else
+            Lighting.ColorShift_Top = OldColorShiftTop
+        end
+    end
+}):AddColorPicker("ColorShiftTopPicker", {
+    Default = Color3.fromRGB(255,255,255),
+    Title = "Color Shift Top",
+    Callback = function(v)
+        Settings["Visual"]["ColorShiftTopSelected"] = v
+        if Settings["Visual"]["ColorShiftTop"] then
+            Lighting.ColorShift_Top = v
+        end
+    end
+})
+
+Group.Lighting:AddToggle("FogColor", {
+    Text = "Fog Color",
+    Default = false,
+    Callback = function(v)
+        Settings["Visual"]["FogColor"] = v
+        if v then
+            Lighting.FogColor = Settings["Visual"]["FogColorSelected"]
+        else
+            Lighting.FogColor = OldFogColor
+        end
+    end
+}):AddColorPicker("FogColorPicker", {
+    Default = Color3.fromRGB(255,255,255),
+    Title = "Fog Color",
+    Callback = function(v)
+        Settings["Visual"]["FogColorSelected"] = v
+        if Settings["Visual"]["FogColor"] then
+            Lighting.FogColor = v
+        end
+    end
+})
+
+Group.Lighting:AddToggle("FogStart", {
+    Text = "Fog Start",
+    Default = false,
+    Callback = function(v)
+        Settings["Visual"]["FogStart"] = v
+        if v then
+            Lighting.FogStart = Settings["Visual"]["FogStartSelected"]
+        else
+            Lighting.FogStart = OldFogStart
+        end
+    end
+})
+
+Group.Lighting:AddSlider("FogStartSlider", {
+    Text = "Fog Start",
+    Default = math.floor(OldFogStart),
+    Min = 0,
+    Max = 1000,
+    Rounding = 1,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Visual"]["FogStartSelected"] = v
+        if Settings["Visual"]["FogStart"] then
+            Lighting.FogStart = v
+        end
+    end
+})
+
+Group.Lighting:AddToggle("FogEnd", {
+    Text = "Fog End",
+    Default = false,
+    Callback = function(v)
+        Settings["Visual"]["FogEnd"] = v
+        if v then
+            Lighting.FogEnd = Settings["Visual"]["FogEndSelected"]
+        else
+            Lighting.FogEnd = OldFogEnd
+        end
+    end
+})
+
+Group.Lighting:AddSlider("FogEndSlider", {
+    Text = "Fog End",
+    Default = OldFogEnd,
+    Min = 0,
+    Max = 100000,
+    Rounding = 1,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Visual"]["FogEndSelected"] = v
+        if Settings["Visual"]["FogEnd"] then
+            Lighting.FogEnd = v
+        end
+    end
+})
+
+Group.Lighting:AddToggle("ClockTime", {
+    Text = "Clock Time",
+    Default = false,
+    Callback = function(v)
+        Settings["Visual"]["ClockTime"] = v
+        if v then
+            Lighting.ClockTime = Settings["Visual"]["ClockTimeSelected"]
+        else
+            Lighting.ClockTime = OldClockTime
+        end
+    end
+})
+
+Group.Lighting:AddSlider("ClockTimeSlider", {
+    Text = "Clock Time",
+    Default = math.floor(OldClockTime),
+    Min = 0,
+    Max = 24,
+    Rounding = 1,
+    Suffix = "h",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Visual"]["ClockTimeSelected"] = v
+        if Settings["Visual"]["ClockTime"] then
+            Lighting.ClockTime = v
+        end
+    end
+})
+
+Group.Lighting:AddToggle("Brightness", {
+    Text = "Brightness",
+    Default = false,
+    Callback = function(v)
+        Settings["Visual"]["Brightness"] = v
+        if v then
+            Lighting.Brightness = Settings["Visual"]["BrightnessSelected"]
+        else
+            Lighting.Brightness = OldBrightness
+        end
+    end
+})
+
+Group.Lighting:AddSlider("BrightnessSlider", {
+    Text = "Brightness",
+    Default = OldBrightness,
+    Min = 0,
+    Max = 10,
+    Rounding = 1,
+    Suffix = "lx",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Visual"]["BrightnessSelected"] = v
+        if Settings["Visual"]["Brightness"] then
+            Lighting.Brightness = v
+        end
+    end
+})
+
+Group.Lighting:AddDropdown('Technology', {
+    Values = {'Voxel', 'Compatibility', 'ShadowMap', 'Future'},
+    Default = 1,
+    Multi = false,
+    Text = 'Technology',
+    Callback = function(v)
+        Lighting.Technology = Enum.Technology[v]
+    end
+})
+
+Group.Tracer:AddToggle("Bullet_Tracer", {
+    Text = "Enable",
+    Default = false,
+    Callback = function(v)
+        Settings["Player"]["BulletEnabled"] = v
+        if v then
+            spawn(function()
+                while task.wait(.1) do
+                    if OWNER.Character:FindFirstChildWhichIsA("Tool") then
+                        LastAmmo = OWNER.Character:FindFirstChildWhichIsA("Tool").Ammo.Value
+                        OWNER.Character:FindFirstChildWhichIsA("Tool").Ammo:GetPropertyChangedSignal("Value"):Connect(function()
+                            if Settings["Player"]["BulletEnabled"] and OWNER.Character:FindFirstChildWhichIsA("Tool").Ammo.Value < LastAmmo then
+                                LastAmmo = OWNER.Character:FindFirstChildWhichIsA("Tool").Ammo.Value
+                                ShootBeam(OWNER.Character:FindFirstChildWhichIsA("Tool"):FindFirstChild("Handle").Position,OWNER:GetMouse().hit.p)
+                            end
+                        end)
+                    end
+                end
+            end)
+        end
+    end
+}):AddColorPicker("Bullet_Color", {
+    Default = Color3.fromRGB(255, 255, 255),
+    Title = "Color",
+    Callback = function(v)
+        Settings["Player"]["BulletColor"] = v
+    end
+})
+
+Group.Tracer:AddSlider("Bullet_Width", {
+    Text = "Width",
+    Default = Settings["Player"]["BulletWidth"],
+    Min = 0.1,
+    Max = 5,
+    Rounding = 1,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Player"]["BulletWidth"] = v
+    end
+})
+
+Group.Tracer:AddSlider("Bullet_Speed", {
+    Text = "Speed",
+    Default = Settings["Player"]["BulletSpeed"],
+    Min = 0.1,
+    Max = 5,
+    Rounding = 1,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Player"]["BulletSpeed"] = v
+    end
+})
+
+Group.PlayerChar:AddToggle("Tracer", {
+    Text = "Tracer",
+    Default = false,
+    Callback = function(v)
+        Settings["Visual"]["Line"]["Enabled"] = v
+    end
+}):AddColorPicker('TracerColor', {
+    Default = Settings["Visual"]["Line"]["Color"],
+    Title = 'Color',
+    Callback = function(v)
+        Settings["Visual"]["Line"]["Color"] = v
+    end
+})
+
+Group.PlayerChar:AddToggle("Highlight", {
+    Text = "Highlight",
+    Default = false,
+    Callback = function(v)
+        Settings["Player"]["Highlight"] = v
+        for _, p in Player:GetPlayers() do
+            if p.Name ~= OWNER.Name then
+                if v then
+                    if p.Character and not p.Character:FindFirstChild("z") then
+                        local z = Instance.new("Highlight", p.Character)
+                        z.Name = "z"
+                        z.OutlineTransparency = 0
+                        z.FillTransparency = 1
+                        z.OutlineColor = Settings["Player"]["HighlightColor"]
+                    end
+                else
+                    if p.Character and p.Character:FindFirstChild("z") then
+                        p.Character:FindFirstChild("z"):Destroy()
+                    end
+                end
+            end
+        end
+    end
+}):AddColorPicker("Highlight_Color", {
+    Default = Settings["Player"]["HighlightColor"],
+    Title = "Color",
+    Callback = function(v)
+        Settings["Player"]["HighlightColor"] = v
+        for _, p in Player:GetPlayers() do
+            if p.Character and p.Character:FindFirstChild("z") then
+                p.Character:FindFirstChild("z").OutlineColor = v
+            end
+        end
+    end
+})
+
+Group.Trail:AddToggle("Trail", {
+    Text = "Enabled",
+    Default = false,
+    Callback = function(v)
+        Settings["Visual"]["Trail"]["Enabled"] = v
+        Trail(v)
+    end
+}):AddColorPicker("Trail_Color", {
+    Default = Settings["Visual"]["Trail"]["Color"],
+    Title = "Color",
+    Callback = function(v)
+        if Settings["Visual"]["Trail"]["Enabled"] then
+            Visual["Trail"]["Color"] = v
+            Trail(false)
+            Trail(true)
+        end
+    end
+})
+
+Group.Trail:AddSlider("TrailLifetime", {
+    Text = "Lifetime",
+    Default = Settings["Visual"]["Trail"]["Lifetime"],
+    Min = 0,
+    Max = 10,
+    Rounding = 1,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        if Settings["Visual"]["Trail"]["Enabled"] then
+            Settings["Visual"]["Trail"]["Lifetime"] = v
+            Trail(false)
+            Trail(true)
+        end
+    end
+})
+
+Group.Sound:AddToggle("HitSoundEnable", {
+    Text = "Enable",
+    Default = false,
+    Callback = function(v)
+        Settings["Player"]["Hit_Sound"] = v
+    end
+})
+
+Group.Sound:AddSlider("HitSoundVolume", {
+    Text = "Volume",
+    Default = Settings["Player"]["Hit_Volume"],
+    Min = 0,
+    Max = 10,
+    Rounding = 1,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Player"]["Hit_Volume"] = v
+    end
+})
+
+Group.Sound:AddDropdown("HitSoundType", {
+    Values = Settings["Cache"]["Table"]["HitSound"],
+    Default = 0,
+    Multi = false,
+    Text = "Sound Type",
+    Callback = function(v)
+        Settings["Cache"]["Connection"]["SelectedSound"] = Asset["SoundAsset"][v]
+    end
+})
+
+Group.Hit:AddToggle("HitEffectEnable", {
+    Text = "Enable",
+    Default = false,
+    Callback = function(v)
+        Settings["Player"]["Hit_Effect"] = v
+    end
+}):AddColorPicker("Color1", {
+    Default = Settings["Visual"]["Particle"]["Color1"],
+    Title = "Color",
+    Callback = function(v)
+        Settings["Visual"]["Particle"]["Color1"] = v
+    end
+}):AddColorPicker("Color2", {
+    Default = Settings["Visual"]["Particle"]["Color2"],
+    Title = "Color",
+    Callback = function(v)
+        Settings["Visual"]["Particle"]["Color2"] = v
+    end
+}):AddColorPicker("Color3", {
+    Default = Settings["Visual"]["Particle"]["Color3"],
+    Title = "Color",
+    Callback = function(v)
+        Settings["Visual"]["Particle"]["Color3"] = v
+    end
+})
+
+Group.Hit:AddDropdown("HitEffectType", {
+    Values = Settings["Cache"]["Table"]["HitEffect"],
+    Default = 0,
+    Multi = false,
+    Text = "Hit Type",
+    Callback = function(v)
+        Settings["Cache"]["Connection"]["SelectedHit"] = v
+    end
+})
+
+Group.Shoot:AddToggle("ShootSound", {
+    Text = "No Shoot Sound",
+    Default = false,
+    Callback = function(v)
+        local OldVol = OWNER.Character:FindFirstChildWhichIsA("Tool"):FindFirstChild("Handle"):FindFirstChild("ShootSound").Volume
+        if v then
+            if OWNER.Character:FindFirstChildWhichIsA("Tool") and OWNER.Character:FindFirstChildWhichIsA("Tool"):FindFirstChild("Handle") and OWNER.Character:FindFirstChildWhichIsA("Tool"):FindFirstChild("Handle"):FindFirstChild("ShootSound") then
+                OWNER.Character:FindFirstChildWhichIsA("Tool"):FindFirstChild("Handle"):FindFirstChild("ShootSound").Volume = 0
+            end
+        else
+            if OWNER.Character:FindFirstChildWhichIsA("Tool") and OWNER.Character:FindFirstChildWhichIsA("Tool"):FindFirstChild("Handle") and OWNER.Character:FindFirstChildWhichIsA("Tool"):FindFirstChild("Handle"):FindFirstChild("ShootSound") then
+                OWNER.Character:FindFirstChildWhichIsA("Tool"):FindFirstChild("Handle"):FindFirstChild("ShootSound").Volume = OldVol
+            end
+        end
+    end
+})
+
+Group.Shop:AddButton({
+    Text = "Rifle",
+    Func = function()
+        Buying("[Rifle] - $1694", "[Rifle]")
+    end,
+    DoubleClick = false
+}):AddButton({
+    Text = "Rifle Ammo",
+    Func = function()
+        Buying("5 [Rifle Ammo] - $273", "Rifle Ammo")
+    end,
+    DoubleClick = false
+})
+
+Group.Shop:AddButton({
+    Text = "AUG",
+    Func = function()
+        Buying("[AUG] - $2131", "[AUG]")
+    end,
+    DoubleClick = false
+}):AddButton({
+    Text = "AUG Ammo",
+    Func = function()
+        Buying("90 [AUG Ammo] - $87", "AUG Ammo")
+    end,
+    DoubleClick = false
+})
+
+Group.Shop:AddButton({
+    Text = "LMG",
+    Func = function()
+        Buying("[LMG] - $4098", "[LMG]")
+    end,
+    DoubleClick = false
+}):AddButton({
+    Text = "LMG Ammo",
+    Func = function()
+        Buying("200 [LMG Ammo] - $328", "LMG Ammo")
+    end,
+    DoubleClick = false
+})
+
+Group.Shop:AddButton({
+    Text = "RPG",
+    Func = function()
+        Buying("[RPG] - $21855", "[RPG]")
+    end,
+    DoubleClick = false
+}):AddButton({
+    Text = "RPG Ammo",
+    Func = function()
+        Buying("5 [RPG Ammo] - $1093", "RPG Ammo")
+    end,
+    DoubleClick = false
+})
+
+Group.Shop:AddButton({
+    Text = "Revolver",
+    Func = function()
+        Buying("[Revolver] - $1421", "[Revolver]")
+    end,
+    DoubleClick = false
+}):AddButton({
+    Text = "Revolver Ammo",
+    Func = function()
+        Buying("12 [Revolver Ammo] - $82", "Revolver Ammo")
+    end,
+    DoubleClick = false
+})
+
+Group.Shop:AddButton({
+    Text = "AK47",
+    Func = function()
+        Buying("[AK47] - $2459", "[AK47]")
+    end,
+    DoubleClick = false
+}):AddButton({
+    Text = "AK47 Ammo",
+    Func = function()
+        Buying("90 [AK47 Ammo] - $87", "AK47 Ammo")
+    end,
+    DoubleClick = false
+})
+
+Group.Shop:AddButton({
+    Text = "High Armor",
+    Func = function()
+        Buying("[High-Medium Armor] - $2513","High-Medium Armor")
+    end,
+    DoubleClick = false
+}):AddButton({
+    Text = "Fire Armor",
+    Func = function()
+        Buying("[Fire Armor] - $2623","Fire Armor")
+    end,
+    DoubleClick = false
+})
+
+Group.Shop:AddButton({
+    Text = "Grenade",
+    Func = function()
+        Buying("[Grenade] - $765","Grenade")
+    end,
+    DoubleClick = false
+}):AddButton({
+    Text = "Flashbang",
+    Func = function()
+        Buying("[Flashbang] - $601","Flashbang")
+    end,
+    DoubleClick = false
+})
+-- Add to Shop group
+Group.tools:AddButton({
+    Text = "Nazi",
+    Func = function()
+        Nazi()
+    end,
+    DoubleClick = false
+})
+-- Add to Shop group
+:AddButton({
+    Text = "Bigpenis",
+    Func = function()
+        Bigpenis()
+    end,
+    DoubleClick = false
+})
+Group.Animator:AddToggle("Animate", {
+    Text = "Enable",
+    Default = false,
+    Callback = function(v)
+        Settings["Player"]["Animator"] = v
+        if v then
+            Settings["Cache"]["Connection"]["Animator"] = RunService.RenderStepped:Connect(function()
+                for i,v in OWNER.Character.Humanoid:GetPlayingAnimationTracks() do
+                    v:AdjustSpeed(Settings["Player"]["AnimatorSpeed"])
+                end
+            end)
+        else
+            Disconnect(Settings["Cache"]["Connection"]["Animator"])
+        end
+    end
+})
+
+Group.Animator:AddSlider("AnimateSpeed", {
+    Text = "Speed",
+    Default = Settings["Player"]["AnimatorSpeed"],
+    Min = 0,
+    Max = 10,
+    Rounding = 1,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Player"]["AnimatorSpeed"] = v
+    end
+})
+
+for location, position in locat do
+    Group.Teleport:AddButton({
+        Text = location,
+        Func = function()
+            getRoot_(OWNER).CFrame = position
+        end,
+        DoubleClick = false
+    })
+end
+
+Options.StrafeOffsetType:SetValue({
+    X = true,
+    Y = true,
+    Z = true
+})
+
+Group.Desync:AddToggle('Desync', {
+    Text = 'Desync',
+    Default = false,
+    Callback = function(v)
+        Settings["Player"]["Desync"] = v
+        if not v then
+            Disconnect(Settings["Cache"]["Connection"]["Desync"])
+            Subject(OWNER)
+            Notify("Desync Disabled",1)
+        end
+    end
+}):AddKeyPicker("DesyncKeybind", {
+    Default = "Z",
+    Text = "Desync",
+    Mode = "Toggle",
+    Callback = function(v)
+        if v and Settings["Player"]["Desync"] then
+            Notify("Desync Enabled",1)
+            local MODEL = Instance.new("Part", workspace)
+            MODEL.Name = "Fakechar"
+            MODEL.CanCollide = false
+            MODEL.Transparency = 1
+            workspace.CurrentCamera.CameraSubject = MODEL
+            MODEL.CFrame = getRoot_(OWNER).CFrame * CFrame.new(0, 2, 0)
+            Settings["Cache"]["Connection"]["Desync"] = RunService.Heartbeat:Connect(function()
+                if OWNER.Character then
+                    MODEL.CFrame = getRoot_(OWNER).CFrame * CFrame.new(0, 2, 0)
+                    local Offset
+                    if Settings["Cache"]["String"]["DesyncTypes"] == "Random" then
+                        Offset = getRoot_(OWNER).CFrame * CFrame.new(math.random(-10000, 10000), math.random(-10000, 10000), math.random(-10000, 10000))
+                    elseif Settings["Cache"]["String"]["DesyncTypes"] == "Killer" then
+                        OWNER.Character.HumanoidRootPart.CFrame = OWNER.Character.HumanoidRootPart.CFrame * CFrame.Angles(0, math.rad(100), 0)
+                        Offset = getRoot_(OWNER).CFrame * CFrame.new(math.random(-2^203, 0/0), math.random(-2^203, -0/0), 0)
+                    elseif Settings["Cache"]["String"]["DesyncTypes"] == "Void" then
+                        Offset = getRoot_(OWNER).CFrame * CFrame.new(math.random(-9e9, 9e9), 0/0, math.random(-9e9, 9e9))
+                    elseif Settings["Cache"]["String"]["DesyncTypes"] == "Endless" then
+                        Offset = getRoot_(OWNER).CFrame * CFrame.new(math.random(-990000000,99000200), math.random(-9900000000,9900000000), math.random(-990000000,900070000))
+                    elseif Settings["Cache"]["String"]["DesyncTypes"] == "Spam" then
+                        Offset = getRoot_(OWNER).CFrame * CFrame.new(0, math.random(-10000, 1000), 0)
+                    elseif Settings["Cache"]["String"]["DesyncTypes"] == "Sideway" then
+                        Offset = getRoot_(OWNER).CFrame * CFrame.new(math.random(-5000, 5000), 0, 0)
+                    elseif Settings["Cache"]["String"]["DesyncTypes"] == "Frontway" then
+                        Offset = getRoot_(OWNER).CFrame * CFrame.new(0, 0, math.random(-5000, 5000))
+                    elseif Settings["Cache"]["String"]["DesyncTypes"] == "Math" then
+                        Offset = getRoot_(OWNER).CFrame * CFrame.new(math.random(-5000, 5000), 0, math.random(-5000, 5000))
+                    end
+                    DLastPos = getRoot_(OWNER).CFrame
+                    getRoot_(OWNER).CFrame = Offset
+                    RunService.RenderStepped:Wait()
+                    getRoot_(OWNER).CFrame = DLastPos
+                end
+            end)
+        else
+            Disconnect(Settings["Cache"]["Connection"]["Desync"])
+            workspace:FindFirstChild("Fakechar"):Destroy()
+            Subject(OWNER)
+            Notify("Desync Disabled",1)
+        end
+    end
+})
+
+Group.Desync:AddToggle('Flip', {
+    Text = 'Flip',
+    Default = false,
+    Callback = function(v)
+        if v then
+            if not getRoot_(OWNER):FindFirstChild("FlipAttachment") then
+                getHumanoid(OWNER):SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+                getHumanoid(OWNER):SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+                getRoot_(OWNER).AssemblyLinearVelocity = Vector3.zero
+                getRoot_(OWNER).AssemblyAngularVelocity = Vector3.zero
+                local attachment = Instance.new("Attachment", getRoot_(OWNER))
+                attachment.Name = "FlipAttachment"
+                local align = Instance.new("AlignOrientation", getRoot_(OWNER))
+                align.Name = "FlipAlign"
+                align.Attachment0 = attachment
+                align.Mode = Enum.OrientationAlignmentMode.OneAttachment
+                align.MaxTorque = math.huge
+                align.Responsiveness = 50
+                Settings["Cache"]["Connection"]["Flip"] = RunService.Heartbeat:Connect(function()
+                    local moveDir = getHumanoid(OWNER).MoveDirection
+                    if moveDir.Magnitude > 0 then
+                        moveDir = moveDir.Unit
+                        if Settings["Player"]["OrientationType"] == "Axis Front" then
+                            align.CFrame = CFrame.lookAt(OWNER.Character.HumanoidRootPart.Position, OWNER.Character.HumanoidRootPart.Position + Vector3.new(moveDir.X + Settings["Player"]["Orientation"].X, 0, moveDir.Z + Settings["Player"]["Orientation"].Z)) * CFrame.Angles(0, 0, math.pi)
+                        elseif Settings["Player"]["OrientationType"] == "Axis Back" then
+                            align.CFrame = CFrame.lookAt(OWNER.Character.HumanoidRootPart.Position, OWNER.Character.HumanoidRootPart.Position + Vector3.new(moveDir.X + Settings["Player"]["Orientation"].X, 0, moveDir.Z + Settings["Player"]["Orientation"].Z)) * CFrame.Angles(math.pi, 0, 0)
+                        elseif Settings["Player"]["OrientationType"] == "Axis Sae" then
+                            align.CFrame = CFrame.lookAt(OWNER.Character.HumanoidRootPart.Position, OWNER.Character.HumanoidRootPart.Position + Vector3.new(moveDir.X + Settings["Player"]["Orientation"].X, 0, moveDir.Z + Settings["Player"]["Orientation"].Z)) * CFrame.Angles(math.pi, 0, math.pi)
+                        elseif Settings["Player"]["OrientationType"] == "Axis Flat" then
+                            align.CFrame = CFrame.lookAt(OWNER.Character.HumanoidRootPart.Position, OWNER.Character.HumanoidRootPart.Position + Vector3.new(moveDir.X + Settings["Player"]["Orientation"].X, 15, moveDir.Z + Settings["Player"]["Orientation"].Z)) * CFrame.Angles(math.pi, math.pi, 0)
+                        elseif Settings["Player"]["OrientationType"] == "Axis Down" then
+                            align.CFrame = CFrame.lookAt(OWNER.Character.HumanoidRootPart.Position, OWNER.Character.HumanoidRootPart.Position + Vector3.new(moveDir.X + Settings["Player"]["Orientation"].X, -15, moveDir.Z + Settings["Player"]["Orientation"].Z)) * CFrame.Angles(math.pi, math.pi, 0)
+                        elseif Settings["Player"]["OrientationType"] == "Axis Spin" then
+                            align.CFrame = CFrame.lookAt(OWNER.Character.HumanoidRootPart.Position, OWNER.Character.HumanoidRootPart.Position + Vector3.new(moveDir.X + Settings["Player"]["Orientation"].X, 0, moveDir.Z + Settings["Player"]["Orientation"].Z)) * CFrame.Angles(0, 0, math.sin(tick() * 2) * math.pi * 1)
+                        end
+                    end
+                end)
+            end
+        else
+            if getRoot_(OWNER):FindFirstChild("FlipAttachment") then
+                getRoot_(OWNER):FindFirstChild("FlipAttachment"):Destroy()
+                getRoot_(OWNER):FindFirstChild("FlipAlign"):Destroy()
+                Disconnect(Settings["Cache"]["Connection"]["Flip"])
+                Subject(OWNER)
+            end
+        end
+    end
+})
+-- Position tracking functions
+local Pos
+function OldPos()
+    if not Pos then 
+        Pos = getRoot_(OWNER).CFrame 
+    end
+end
+
+function ReturnPos()
+    if Pos then
+        getRoot_(OWNER).CFrame = Pos
+        Pos = nil
+    end
+end
+
+-- Modified weapon purchase function with auto-equip
+function BuyWeapon(weaponName, price)
+    repeat RunService.Heartbeat:Wait()
+        CustomOffsets(workspace.Ignored.Shop[weaponName.." - $"..price].Head.CFrame * CFrame.new(0,-5,0))
+        fireclickdetector(workspace.Ignored.Shop[weaponName.." - $"..price].ClickDetector)
+    until OWNER.Backpack:FindFirstChild(weaponName)
+    
+    -- Immediately equip the weapon
+    local tool = OWNER.Backpack:FindFirstChild(weaponName)
+    if tool then
+        tool.Parent = OWNER.Character
+    end
+end
+
+-- Tool positioning function
+function PositionTool(toolName, grips)
+    local count = 0
+    -- Get tools from both backpack and character
+    for _, v in pairs(OWNER.Backpack:GetChildren()) do
+        if v.Name == toolName then
+            v.Parent = OWNER.Character
+            v.Grip = grips[count + 1]
+            count = count + 1
+            if count >= #grips then break end
+        end
+    end
+    for _, v in pairs(OWNER.Character:GetChildren()) do
+        if v.Name == toolName and v:IsA("Tool") then
+            v.Grip = grips[count + 1]
+            count = count + 1
+            if count >= #grips then break end
+        end
+    end
+end
+
+function Nazi()
+    OldPos()
+    
+    -- Purchase and equip weapons twice
+    for _ = 1, 2 do
+        BuyWeapon("[StopSign]", 328)
+        BuyWeapon("[Pitchfork]", 350)
+        BuyWeapon("[Bat]", 300)
+        BuyWeapon("[Shovel]", 350)
+        BuyWeapon("[SledgeHammer]", 382)
+    end
+    
+
+    
+    -- Position tools with specific grips
+    PositionTool("[SledgeHammer]", {
+        CFrame.new(-13, 0, 0) * CFrame.Angles(0, 0, -1.6),
+        CFrame.new(0, -13, 0)
+    })
+    
+    PositionTool("[Shovel]", {
+        CFrame.new(0.39, -3, 12.85) * CFrame.Angles(0, 1.6, -1.6),
+        CFrame.new(0.28, -3, -13) * CFrame.Angles(0, 1.55, 1.55)
+    })
+    
+    PositionTool("[Bat]", {
+        CFrame.new(-0.4, 10.2, 5.3) * CFrame.Angles(1.6, 1.6, 1.55),
+        CFrame.new(-4.5, -15.51, 0)
+    })
+    
+    PositionTool("[Pitchfork]", {
+        CFrame.new(-0.2, -10.2, 0) * CFrame.Angles(0, 0, 50.25),
+        CFrame.new(0, 14.9, -0.2) * CFrame.Angles(53.4, 0, 0)
+    })
+    
+    PositionTool("[StopSign]", {
+        CFrame.new(2.9, -17, 0) * CFrame.Angles(50.27, 0, 0),
+        CFrame.new(3, -8.16, 0) * CFrame.Angles(0, 53.4, 0)
+    })
+
+end
+
+function Bigpenis()
+    OldPos()
+    
+    -- Purchase all weapons first
+    local weapons = {
+        {name = "[Bat]", price = 300, count = 2},
+        {name = "[StopSign]", price = 328, count = 2},
+        {name = "[Pitchfork]", price = 350, count = 2},
+        {name = "[Shovel]", price = 350, count = 2},
+        {name = "[SledgeHammer]", price = 382, count = 2},
+        {name = "[Firework]", price = 10927, count = 1}
+    }
+
+    -- Purchase weapons
+    for _, weapon in pairs(weapons) do
+        for _ = 1, weapon.count do
+            BuyWeapon(weapon.name, weapon.price)
+        end
+    end
+
+    -- Collect all tools from backpack
+    local tools = {}
+    for _, toolName in pairs({"[Bat]", "[StopSign]", "[Pitchfork]", "[Shovel]", "[SledgeHammer]", "[Firework]"}) do
+        for _, v in pairs(OWNER.Backpack:GetChildren()) do
+            if v.Name == toolName then
+                table.insert(tools, v)
+            end
+        end
+    end
+
+    -- Equip all tools at once
+    for _, tool in pairs(tools) do
+        tool.Parent = OWNER.Character
+    end
+
+    -- Position tools with delays
+    PositionToolpenis("[Bat]", {
+        {grip = CFrame.new(1.4, -1.2, 2) * CFrame.Angles(math.rad(90), 0, 0)},
+        {grip = CFrame.new(1.4, -5.714286, 2) * CFrame.Angles(math.rad(90), 0, 0)}
+    })
+    task.wait(0.2)
+
+    PositionToolpenis("[StopSign]", {
+        {grip = CFrame.new(-11.020409, 2, 1.4) * CFrame.Angles(0, math.rad(-90), 0)},
+        {grip = CFrame.new(-17.142857, 2, 1.4) * CFrame.Angles(0, math.rad(-90), 0)}
+    })
+    task.wait(0.2)
+
+    PositionToolpenis("[Pitchfork]", {
+        {grip = CFrame.new(1.4, 22.9, -2) * CFrame.Angles(math.rad(-90), 0, 0)},
+        {grip = CFrame.new(1.4, 26, -2) * CFrame.Angles(math.rad(-90), 0, 0)}
+    })
+    task.wait(0.2)
+
+    PositionToolpenis("[Shovel]", {
+        {grip = CFrame.new(1.4, -30.612246, 2) * CFrame.Angles(math.rad(90), 0, 0)},
+        {grip = CFrame.new(1.4, -28.571428, 2) * CFrame.Angles(math.rad(90), 0, 0)}
+    })
+    task.wait(0.2)
+
+    PositionToolpenis("[SledgeHammer]", {
+        {grip = CFrame.new(1.4, 32.653061, -2) * CFrame.Angles(math.rad(-90), 0, 0)},
+        {grip = CFrame.new(1.4, 38, -2) * CFrame.Angles(math.rad(-90), 0, 0)}
+    })
+    task.wait(0.2)
+
+    PositionToolpenis("[Firework]", {
+        {grip = CFrame.new(1.4, -42.857143, 2) * CFrame.Angles(math.rad(90), 0, 0)}
+    })
+
+
+end
+
+-- Enhanced PositionTool function
+function PositionToolpenis(toolName, grips)
+    local count = 0
+    -- Check both character and backpack
+    for _, v in pairs(OWNER.Character:GetChildren()) do
+        if v.Name == toolName and v:IsA("Tool") then
+            if grips[count + 1] then
+                v.Grip = grips[count + 1].grip
+                count = count + 1
+            end
+            if count >= #grips then break end
+        end
+    end
+    for _, v in pairs(OWNER.Backpack:GetChildren()) do
+        if v.Name == toolName then
+            v.Parent = OWNER.Character
+            if grips[count + 1] then
+                v.Grip = grips[count + 1].grip
+                count = count + 1
+            end
+            if count >= #grips then break end
+        end
+    end
+end
+
+
+
+Group.Desync:AddSlider("OffsetX", {
+    Text = "Offset X",
+    Default = 0,
+    Min = -1000,
+    Max = 1000,
+    Rounding = 0,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Player"]["Orientation"].X = v
+    end
+})
+
+Group.Desync:AddSlider("OffsetY", {
+    Text = "Offset Y",
+    Default = 0,
+    Min = -1000,
+    Max = 1000,
+    Rounding = 0,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Player"]["Orientation"].Y = v
+    end
+})
+
+Group.Desync:AddSlider("OffsetZ", {
+    Text = "Offset Z",
+    Default = 0,
+    Min = -1000,
+    Max = 1000,
+    Rounding = 0,
+    Suffix = "px",
+    HideMax = false,
+    Compact = true,
+    Callback = function(v)
+        Settings["Player"]["Orientation"].Z = v
+    end
+})
+
+Group.Desync:AddDropdown('Dropdown', {
+    Values = { 'Axis Front', 'Axis Back', 'Axis Sae', 'Axis Flat', 'Axis Down', 'Axis Spin' },
+    Default = 1,
+    Multi = false,
+    Text = 'Orientation Type',
+    Callback = function(v)
+        Settings["Player"]["OrientationType"] = v
+    end
+})
+
+Group.Desync:AddDropdown('Dropdown', {
+    Values = { 'Random', 'Killer', 'Void', 'Endless', 'Spam', 'Sideway', 'Frontway', 'Math' },
+    Default = 1,
+    Multi = false,
+    Text = 'Desync Type',
+    Callback = function(v)
+        Settings["Cache"]["String"]["DesyncTypes"] = v
+    end
+})
+
+Group.Desync:AddButton({
+    Text = 'Reset Orientation',
+    Func = function()
+        Options.OffsetX:SetValue(0)
+        Options.OffsetY:SetValue(0)
+        Options.OffsetZ:SetValue(0)
+        Settings["Player"]["Orientation"].X = 0
+        Settings["Player"]["Orientation"].Y = 0
+        Settings["Player"]["Orientation"].Z = 0
+    end,
+    DoubleClick = false
+})
+
+if ReplicatedStorage:WaitForChild("ClientAnimations").Block.AnimationId == "rbxassetid://0" then else
+	ReplicatedStorage.ClientAnimations.Block.AnimationId = "rbxassetid://0"
+	getHumanoid(OWNER):ChangeState'Dead'
+end
+
+InsertOn(getgenv().Connection___,RunService.Heartbeat:Connect(function(delta)
+    Settings["Cache"]["Interger"]["Delta"] = (Settings["Cache"]["Interger"]["Delta"] + 
+    delta/Settings["Cache"]["Interger"]["Duration"])
+end))
+
+InsertOn(getgenv().Connection___,OWNER.CharacterAdded:connect(function(char)
+    OWNER.Character:WaitForChild("FULLY_LOADED_CHAR")
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/http-request-uuid/scripts/refs/heads/main/src/Chat"))()
+    OWNER.CameraMaxZoomDistance = 9e9
+   --[[for i,v in OWNER.Character:WaitForChild("Humanoid"):GetPlayingAnimationTracks() do v:Stop() end
+    task.wait(.1)
+    OWNER.Character:WaitForChild("Animate").idle.Animation1.AnimationId = "http://www.roblox.com/asset/?id=1212900985"
+    OWNER.Character:WaitForChild("Animate").idle.Animation2.AnimationId = "http://www.roblox.com/asset/?id=18537371272"
+    OWNER.Character:WaitForChild("Animate").walk.WalkAnim.AnimationId = "http://www.roblox.com/asset/?id=616168032"
+    OWNER.Character:WaitForChild("Animate").run.RunAnim.AnimationId = "http://www.roblox.com/asset/?id=616163682"
+    OWNER.Character:WaitForChild("Animate").jump.JumpAnim.AnimationId = "http://www.roblox.com/asset/?id=656117878"
+    OWNER.Character:WaitForChild("Animate").climb.ClimbAnim.AnimationId = "http://www.roblox.com/asset/?id=656114359"
+    OWNER.Character:WaitForChild("Animate").fall.FallAnim.AnimationId = "http://www.roblox.com/asset/?id=656115606"]]
+end))
+
+InsertOn(getgenv().Connection___,game.Players.PlayerAdded:Connect(function(p)
+    spawn(function()
+        if p:IsInGroup(10604500) or p:IsInGroup(17215700) then
+            OWNER:Kick(("🚨 A Mod Joined In Your Server [%s]: %s (%s)"):format(p:GetRoleInGroup(p:IsInGroup(10604500) and 10604500 or 17215700), p.DisplayName, p.Name))
+        end
+    end)
+end))
+
+InsertOn(getgenv().Connection___,RunService.RenderStepped:Connect(function()
+    xpcall(function()
+        if Settings["Visual"]["Line"]["Enabled"] and TARGET then
+            Line.Visible = true
+            Line.Thickness = Settings["Visual"]["Line"]["Thickness"]
+            Line.Color = Settings["Visual"]["Line"]["Color"]
+            Line.From = Vector2.new(workspace.CurrentCamera:WorldToViewportPoint(TARGET.Character:FindFirstChild("Head").Position).X, workspace.CurrentCamera:WorldToViewportPoint(TARGET.Character:FindFirstChild("Head").Position).Y)
+            Line.To = UserInputService:GetMouseLocation()
+        else
+            Line.Visible = false
+        end
+
+        if Settings["Visual"]["Circle"]["Enabled"] then
+            Circle.Visible = true
+            Circle.Radius = Settings["Visual"]["Circle"]["Radius"]
+            Circle.Color = Settings["Visual"]["Circle"]["Color"]
+            Circle.Thickness = Settings["Visual"]["Circle"]["Thickness"]
+            Circle.Position = UserInputService:GetMouseLocation()
+        else
+            Circle.Visible = false
+        end
+
+        spawn(function()
+            for i,p in game:FindService("Players"):GetPlayers() do
+                if p:IsInGroup(10604500) or p:IsInGroup(17215700) then
+                    OWNER:Kick(("🚨 A Mod Is On Your Server [%s]: %s (%s)"):format(p:GetRoleInGroup(p:IsInGroup(10604500) and 10604500 or 17215700), p.DisplayName, p.Name))
+                end
+            end
+        end)
+
+    end, function(err)
+        warn("[Error On Path {Type : Service}] " .. err)
+    end)
+end))
+
+InsertOn(getgenv().Connection___,RunService.Stepped:Connect(function()
+    pcall(function()
+        spawn(function()
+            if Settings["Cache"]["Bool"]["Blocking"] then
+                if OWNER.Character.BodyEffects:FindFirstChild("Block") then OWNER.Character.BodyEffects.Block:Destroy() end
+                if OWNER.Character:FindFirstChildWhichIsA("Tool") and OWNER.Character:FindFirstChildWhichIsA("Tool"):FindFirstChild("Ammo") then
+                MainEvent:FireServer("Block", false) else
+                MainEvent:FireServer("Block", true) wait()
+                MainEvent:FireServer("Block", false) end
+    	    end
+        end)
+    end)
+end))
+
+InsertOn(getgenv().Connection___,RunService.Heartbeat:Connect(function()
+    pcall(function()
+        spawn(function() if OWNER.PlayerGui.MainScreenGui:FindFirstChild('Leaderboard') then OWNER.PlayerGui.MainScreenGui.Leaderboard.Active = false OWNER.PlayerGui.MainScreenGui.Leaderboard.Visible = false game.StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, true) end end)
+        spawn(function() Lighting.PepperSprayBlur.Size = 0 end)
+        spawn(function() Destroy(OWNER.PlayerGui.MainScreenGui,"whiteScreen") end)
+        spawn(function() game.StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true) end)
+        spawn(function() for i, v in workspace.Players:GetChildren() do v:FindFirstChildWhichIsA('Humanoid').DisplayDistanceType = 'Subject' end end)
+        spawn(function() Destroy(OWNER.Character.BodyEffects.Movement,"NoWalkSpeed")Destroy(OWNER.Character.BodyEffects.Movement,"ReduceWalk") if OWNER.Character.BodyEffects:FindFirstChild("Reload") then OWNER.Character.BodyEffects:FindFirstChild("Reload").Value = false end end)
+        spawn(function() AnimStop(2788315673) AnimStop(2788316350) AnimStop(2788313790) AnimStop(2788312709) AnimStop(2788314837) AnimStop(2877910736) AnimStop(4798175381) AnimStop(3619010834) AnimStop(698251653) AnimStop(2953512033) AnimStop(2954287128) AnimStop(3380627692) AnimStop(3380629232) AnimStop(3144026747) end)
+    end)
+    pcall(function()
+        spawn(function()
+            if Settings["Player"]["KillAura"] == false then
+                if TARGET and Settings["Player"]["BulletTP"] and Settings["Player"]["Enabled"] then
+                    DisableRay(false)
+                    HiddenBullet()
+                end
+            else
+                for _, v in grange() do
+                    if v.Character and v.Character:FindFirstChild("Head") and Settings["Player"]["Enabled"] then
+                        if OWNER.Character:FindFirstChildWhichIsA("Tool") and OWNER.Character:FindFirstChildWhichIsA("Tool"):FindFirstChild("Handle") and OWNER.Character:FindFirstChildWhichIsA("Tool").Activated then 
+                            DisableRay(false)
+                            MainEvent:FireServer("ShootGun", OWNER.Character:FindFirstChildWhichIsA("Tool"):FindFirstChild("Handle"),getRoot_(OWNER).Position, v.Character.Head.Position, v.Character.Head, Vector3.new(0, 0, -1))
+                        end
+                    end
+                end
+            end
+            DisableRay(true)
+        end)
+    end)
+
+    pcall(function()
+        spawn(function()
+            if workspace.Ignored:FindFirstChild("Model") then
+                for _, v in workspace.Ignored.Model:GetChildren() do
+                    if v.Name == "Launcher" and (v.Position - OWNER.Character.HumanoidRootPart.Position).Magnitude <= 35 then
+	        			CustomOffsets(getRoot_(OWNER).CFrame*CFrame.new(0,-100,0))
+                    end
+                end
+            end
+        end)
+    end)
+
+    pcall(function()
+        spawn(function()
+            if TARGET then
+                for i, v in workspace.Ignored:GetChildren() do
+                    if v.Name == "Handle" then
+                        if not v:FindFirstChild("Attachment") then
+                            local Attachment = Instance.new("Attachment",v)
+                            local Beam = Instance.new("Beam",Attachment)
+                            Beam.Brightness = 9e9
+                            Beam.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromRGB(146, 186, 255)),ColorSequenceKeypoint.new(0.5, Color3.fromRGB(146, 186, 255)),ColorSequenceKeypoint.new(1, Color3.fromRGB(146, 186, 255))}
+                            Beam.LightEmission = 1
+                            Beam.TextureMode = Enum.TextureMode.Wrap
+                            Beam.TextureSpeed = .1
+                            Beam.Attachment0 = OWNER.Character.RightHand.RightGripAttachment
+                            Beam.Attachment1 = Attachment
+                            Beam.Width0 = .1
+                            Beam.Width1 = .1
+                            Beam.FaceCamera = true
+                        end
+	            		v.Velocity = Vector3.new(0, 30, 0)
+	            		v.CanCollide = false
+	            		if (v.Position - TARGET.Character.HumanoidRootPart.Position).Magnitude < 30 then
+	            			if v:FindFirstChildWhichIsA("BodyPosition") then v:FindFirstChildWhichIsA("BodyPosition"):Destroy() end
+	            			v.CFrame = CFrame.new(TARGET.Character.UpperTorso.Position + (TARGET.Character.Humanoid.MoveDirection * .34 * TARGET.Character.Humanoid.WalkSpeed))
+	            		else
+	            			if not v:FindFirstChildWhichIsA("BodyPosition") then Instance.new("BodyPosition",v) end
+	            			v.BodyPosition.MaxForce = Vector3.new(math.huge,math.huge,math.huge)
+	            			v.BodyPosition.Position = TARGET.Character.UpperTorso.Position + (TARGET.Character.Humanoid.MoveDirection * .34 * TARGET.Character.Humanoid.WalkSpeed)
+	            			v.BodyPosition.P = 10000
+	            			v.BodyPosition.D = 175	
+	            		end
+	            	elseif v.Name == "Part" then
+	            		if v.Anchored == false then
+                            if not v:FindFirstChild("Attachment") then
+                                local Attachment = Instance.new("Attachment",v)
+                                local Beam = Instance.new("Beam",Attachment)
+                                Beam.Brightness = 9e9
+                                Beam.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromRGB(146, 186, 255)),ColorSequenceKeypoint.new(0.5, Color3.fromRGB(146, 186, 255)),ColorSequenceKeypoint.new(1, Color3.fromRGB(146, 186, 255))}
+                                Beam.LightEmission = 1
+                                Beam.TextureMode = Enum.TextureMode.Wrap
+                                Beam.TextureSpeed = .1
+                                Beam.Attachment0 = OWNER.Character.RightHand.RightGripAttachment
+                                Beam.Attachment1 = Attachment
+                                Beam.Width0 = .1
+                                Beam.Width1 = .1
+                                Beam.FaceCamera = true
+                            end
+	            			v.Velocity = Vector3.new(0, 30, 0)
+	            			v.CanCollide = false
+	            			if (v.Position - TARGET.Character.HumanoidRootPart.Position).Magnitude < 30 then
+	            				if v:FindFirstChildWhichIsA("BodyPosition") then v:FindFirstChildWhichIsA("BodyPosition"):Destroy() end
+	            				v.CFrame = CFrame.new(TARGET.Character.UpperTorso.Position + (TARGET.Character.Humanoid.MoveDirection * .34 * TARGET.Character.Humanoid.WalkSpeed))
+	            			else
+	            				if not v:FindFirstChildWhichIsA("BodyPosition") then Instance.new("BodyPosition",v) end
+	            				v.BodyPosition.MaxForce = Vector3.new(math.huge,math.huge,math.huge)
+	            				v.BodyPosition.Position = TARGET.Character.UpperTorso.Position + (TARGET.Character.Humanoid.MoveDirection * .34 * TARGET.Character.Humanoid.WalkSpeed)
+	            				v.BodyPosition.P = 10000
+	            				v.BodyPosition.D = 175
+	            			end
+	            		end
+                    end
+	            end
+            end
+        end)
+    end)
+end))
+
+InsertOn(getgenv().Connection___,UserInputService.InputBegan:Connect(function(input, process)
+    if process then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        Settings["Player"]["Enabled"] = true
+    end
+end))
+
+InsertOn(getgenv().Connection___,UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        Settings["Player"]["Enabled"] = false
+    end
+end))
+
+InsertOn(getgenv().Connection___,OWNER.Idled:Connect(function()
+    game:GetService("VirtualUser"):Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+    task.wait(1) 
+    game:GetService("VirtualUser"):Button2Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+end))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+local StompModule,DhLibrary = loadstring(game:HttpGet("https://raw.githubusercontent.com/penguin-cmyk/legion/refs/heads/main/utils/stomp_effects.luau"))()
+------------
+StompModule:AddStompEffect({
+   Name = "Yes",
+   Callback = function(stompedCharacter,localCharacter)
+      print(stompedCharacter,localCharacter)
+   end
+})
+------------
+
+
+
+
+Group.Effects:AddToggle("StompEffects",{
+    Text = "Stompeffects",
+    Default = false,
+    Callback = function(state)
+        StompModule:Toggle(state)
+    end 
+})
+Group.Effects:AddDropdown("Dropdown",{
+    Text = "Select stomp effect",
+    Values = StompModule.CurrentEffects ,
+    Default = 1,
+    Multi = false,
+    Callback = function(value)
+        StompModule.StompEffect = value
+    end 
+})
+
+
+
+
+
+
+
+
+
+
+Library.KeybindFrame.Visible = true;
+
+local MenuGroup = Tabs.UISettings:AddLeftGroupbox('Menu')
+MenuGroup:AddButton('Unload', function() Library:Unload() end)
+MenuGroup:AddLabel('Menu bind'):AddKeyPicker('MenuKeybind', { Default = 'V',Mode = 'Toggle', NoUI = true, Text = 'Menu keybind' })
+Library.ToggleKeybind = Options.MenuKeybind
+ThemeManager:SetLibrary(Library)
+SaveManager:SetLibrary(Library)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({ 'MenuKeybind' })
+SaveManager:BuildConfigSection(Tabs.UISettings)
+ThemeManager:ApplyToTab(Tabs.UISettings)
+SaveManager:LoadAutoloadConfig()
