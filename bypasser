@@ -1,0 +1,682 @@
+local repo = 'https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/'
+local Library = loadstring(game:HttpGet(repo .. 'Library.lua'))()
+local ThemeManager = loadstring(game:HttpGet(repo .. 'addons/ThemeManager.lua'))()
+local SaveManager = loadstring(game:HttpGet(repo .. 'addons/SaveManager.lua'))()
+
+local Window = Library:CreateWindow({ 
+    Title = '               its a bypasser what do you expect                   ', 
+    AutoShow = true, 
+    TabPadding = 15, 
+    MenuFadeTime = 0.2 
+})
+
+local Tabs = { 
+    Main = Window:AddTab('bypass'), 
+    ['UI Settings'] = Window:AddTab('UI Settings') 
+}
+
+
+local bypassGroup = Tabs.Main:AddRightGroupbox('niggertron bypasser v69')
+local bypassGroup2 = Tabs.Main:AddRightGroupbox('Premade Messages')
+
+
+bypassGroup:AddButton('Chat Spy', function()
+    enabled = true --chat "/spy" to toggle!
+    spyOnMyself = true --if true will check your messages too
+    public = false --if true will chat the logs publicly (fun, risky)
+    publicItalics = true --if true will use /me to stand out
+    privateProperties = { --customize private logs
+        Color = Color3.fromRGB(0,255,255); 
+        Font = Enum.Font.SourceSansBold;
+        TextSize = 18;
+    }
+    
+    
+    local StarterGui = game:GetService("StarterGui")
+    local Players = game:GetService("Players")
+    local player = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait() or Players.LocalPlayer
+    local saymsg = game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents"):WaitForChild("SayMessageRequest")
+    local getmsg = game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents"):WaitForChild("OnMessageDoneFiltering")
+    local instance = (_G.chatSpyInstance or 0) + 1
+    _G.chatSpyInstance = instance
+    
+    local function onChatted(p,msg)
+        if _G.chatSpyInstance == instance then
+            if p==player and msg:lower():sub(1,4)=="/spy" then
+                enabled = not enabled
+                wait(0.3)
+                privateProperties.Text = "{SPY "..(enabled and "EN" or "DIS").."ABLED}"
+                StarterGui:SetCore("ChatMakeSystemMessage",privateProperties)
+            elseif enabled and (spyOnMyself==true or p~=player) then
+                msg = msg:gsub("[\n\r]",''):gsub("\t",' '):gsub("[ ]+",' ')
+                local hidden = true
+                local conn = getmsg.OnClientEvent:Connect(function(packet,channel)
+                    if packet.SpeakerUserId==p.UserId and packet.Message==msg:sub(#msg-#packet.Message+1) and (channel=="All" or (channel=="Team" and public==false and Players[packet.FromSpeaker].Team==player.Team)) then
+                        hidden = false
+                    end
+                end)
+                wait(1)
+                conn:Disconnect()
+                if hidden and enabled then
+                    if public then
+                        saymsg:FireServer((publicItalics and "/me " or '').."{SPY} [".. p.Name .."]: "..msg,"All")
+                    else
+                        privateProperties.Text = "{SPY} [".. p.Name .."]: "..msg
+                        StarterGui:SetCore("ChatMakeSystemMessage",privateProperties)
+                    end
+                end
+            end
+        end
+    end
+    
+    for _,p in ipairs(Players:GetPlayers()) do
+        p.Chatted:Connect(function(msg) onChatted(p,msg) end)
+    end
+    Players.PlayerAdded:Connect(function(p)
+        p.Chatted:Connect(function(msg) onChatted(p,msg) end)
+    end)
+    privateProperties.Text = "{SPY "..(enabled and "EN" or "DIS").."ABLED}"
+    StarterGui:SetCore("ChatMakeSystemMessage",privateProperties)
+    if not player.PlayerGui:FindFirstChild("Chat") then wait(3) end
+    local chatFrame = player.PlayerGui.Chat.Frame
+    chatFrame.ChatChannelParentFrame.Visible = true
+    chatFrame.ChatBarParentFrame.Position = chatFrame.ChatChannelParentFrame.Position+UDim2.new(UDim.new(),chatFrame.ChatChannelParentFrame.Size.Y)
+    
+end)
+-- Special invisible separator (ASCII 31 - Unit Separator)
+local UNIT_SEP = string.char(31) -- 0x1F
+
+-- Your premade messages (shown with normal spaces but sent with UNIT_SEP)
+local premadeMessages = {
+    "fu〪ck you",
+    "shi〪t game",
+    "di〪scord.gg/Ga〪yFurryPo〪rnRp",
+    "add more here else your gay",
+}
+
+-- Add buttons for each premade message
+for i, message in ipairs(premadeMessages) do
+    bypassGroup2:AddButton(message, function()
+        -- Replace spaces with special character before sending
+        local bypassedMessage = message:gsub("%s", UNIT_SEP)
+        
+        local ChatEvent = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents") 
+            and game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest
+            or nil
+
+        if ChatEvent then
+            ChatEvent:FireServer(bypassedMessage, "All")
+        else
+            game:GetService("TextChatService").TextChannels.RBXGeneral:SendAsync(bypassedMessage)
+        end
+        
+        Library:Notify('Sent: '..message, 2)
+    end)
+end
+
+
+
+
+
+
+
+
+
+local UNIT_SEP = string.char(0x1F) 
+
+--[[ gay thing
+〪
+]]
+-- Bypass dictionary (using your exact replacements)
+local bypassDict = {
+    ["fuck"] = "fu〪ck",
+    ["fuuck"] = "fuu〪ck",
+    ["fuuuck"] = "fuuu〪ck",
+    ["fucks"] = "fu〪ck",
+    ["fuckk"] = "fu〪ckk",
+    ["fuckkk"] = "fu〪ckk〪k",
+    ["fuckkkk"] = "fu〪ckkk〪k",
+    ["fuckkkkk"] = "fu〪ckkk〪kk",
+    ["discord"] = "di〪scord",
+    ["shit"] = "shi〪t",
+    ["nigger"] = "ⴖigger",
+    ["niggertron"] = "ⴖiggertron",
+    ["nigga"] = "ⴖigga",
+    ["cock"] = "ᲃock",
+    ["hoe"] = "bi〪tch",
+    ["bitch"] = "bi〪tch",
+    ["slut"] = "sIut",
+	["slave"] = "sIave",
+	["ass"] = "aรร",
+	["sex"] = "s〪ex",
+	["suck"] = "รuck",
+	["fucking"] = "fu〪cking",
+	["retard"] = "ꞅetard",
+	["retarded"] = "ꞅetarded",
+	["kill"] = "ki〪ll",
+	["faggot"] = "fa〪ggot",
+	["fag"] = "fa〪g",
+	["cum"] = "cu〪m",
+	["negro"] = "ⴖegro",
+	["blackie"] = "blac〪kie",
+	["dick"] = "di〪ck",
+	["pussy"] = "pus〪sy",
+	["tit"] = "ti〪t",
+	["tittie"] = "ti〪ttie",
+	["titty"] = "ti〪tty",
+	["boob"] = "boo〪b",
+	["boobie"] = "boo〪bie",
+	["booby"] = "boo〪by",
+	["hoe"] = "ho〪e",
+	["fatty"] = "fa〪tty",
+	["fattie"] = "fa〪ttie",
+	["fat"] = "fa〪t",
+	["fatso"] = "fa〪tso",
+	["fatass"] = "fa〪taรร",
+	["asshole"] = "aรรh〪ole",
+	["buthole"] = "bu〪thole",
+	["butthole"] = "bu〪tthole",
+	["hole"] = "h〪ole",
+	["rape"] = "ra〪pe",
+	["raped"] = "ra〪ped",
+	["rapped"] = "ra〪pped",
+	["rapes"] = "ra〪pes",
+	["jerking"] = "jer〪king",
+	["masterbaiting"] = "masterbai〪ting",
+	["baiting"] = "bai〪ting",
+	["masterbait"] = "masterbai〪t",
+    ["bait"] = "bai〪t",
+    ["fuckwit"] = "fu〪ckwit",
+    ["fuckwits"] = "fu〪ckwits",
+    ["kkk"] = "kk〪k",
+    ["robb"] = "rob〪b",
+    ["rob"] = "rob〪",
+    ["whore"] = "who〪re",
+    ["whores"] = "who〪res",
+    ["porn"] = "po〪rn",
+    ["of"] = "o〪f",
+    ["fans"] = "fa〪ns",
+    ["fan"] = "fa〪n",
+	["onlyfan"] = "onlyfa〪n",
+	["onlyfans"] = "onlyfa〪ns",
+	[""] = "",
+	[""] = "",
+	[""] = "",
+	[""] = "",
+	[""] = "",
+
+
+
+
+-- s'ss section
+    ["niggers"] = "ⴖiggers",
+    ["niggas"] = "ⴖiggas",
+    ["cocks"] = "ᲃocks",
+    ["hoes"] = "bi〪tchs",
+    ["bitches"] = "bi〪tches",
+    ["sluts"] = "sIuts",
+	["slaves"] = "sIaves",
+	["niggerish"] = "ⴖiggerish",
+	["faggots"] = "fa〪ggots",
+	["fags"] = "fa〪gs",
+	["cums"] = "cu〪ms",
+	["negros"] = "ⴖegros",
+	["blackies"] = "blac〪kies",
+	["dicks"] = "di〪cks",
+	["pussies"] = "pus〪sies",
+	["hoes"] = "ho〪es",
+	[""] = "",
+	[""] = "",
+	[""] = "",
+	["tits"] = "ti〪ts",
+	["titties"] = "ti〪tties",
+	["tit"] = "ti〪t",
+	["tittys"] = "ti〪ttys",
+	["boobs"] = "boo〪bs",
+	["boobies"] = "boo〪bies",
+	["boobys"] = "boo〪bys",
+	["assholes"] = "aรรholes",
+	["butholes"] = "bu〪tholes",
+	["fattys"] = "fa〪ttys",
+	["fatties"] = "fa〪tties",
+	["fats"] = "fa〪ts",
+	["assholes"] = "aรรh〪oles",
+	["butholes"] = "bu〪tholes",
+	["buttholes"] = "bu〪ttholes",
+	["holes"] = "h〪oles",
+
+
+
+
+
+
+
+-- extras
+
+    ["niger"] = "ⴖiger",
+    ["niga"] = "ⴖiga",
+	["fucktard"] = "fu〪cktard",
+	["fuckwad"] = "fu〪ckwad",
+	["killed"] = "ki〪lled",
+	["enslaved"] = "ensIaved",
+	["cummed"] = "cu〪mmed",
+	["cumslut"] = "cu〪msIut",
+	["neggro"] = "ⴖeggro",
+	[""] = "",
+	[""] = "",
+
+
+
+}
+
+local function createBypass(text)
+    text = text:lower()
+    for word, replacement in pairs(bypassDict) do
+        text = text:gsub("%f[%w]"..word.."%f[%W]", replacement)
+    end
+    
+    text = text:gsub("%s", UNIT_SEP)
+    
+    return text
+end
+
+local inputBox = bypassGroup:AddInput('ChatInput', {
+    Default = '',
+    Numeric = false,
+    Finished = false,
+    Text = 'Chat Message',
+    Placeholder = 'Swear at kids!!!'
+})
+
+
+
+-- Chat connection
+local ChatEvent = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents") 
+    and game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest
+    or nil
+
+-- Send to chat function
+local function sendBypassedChat()
+    if inputBox.Value == "" then return end
+    
+    local message = createBypass(inputBox.Value)
+    
+    if ChatEvent then
+        -- Standard chat system
+        ChatEvent:FireServer(message, "All")
+    else
+        -- Fallback method
+        game:GetService("TextChatService").TextChannels.RBXGeneral:SendAsync(message)
+    end
+    
+    Library:Notify('Message sent with space replacement!', 2)
+end
+
+
+
+bypassGroup:AddButton('SEND TO CHAT', function()
+    sendBypassedChat()
+end)
+
+-- Chat bypass variables
+local chatBypassEnabled = false
+local chatHook = nil
+
+-- Chat bypass function
+local function LoadChatBypass()
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+    local ChatService = game:GetService("TextChatService")
+
+    -- Special invisible separator (ASCII 31 - Unit Separator)
+    local UNIT_SEP = string.char(31) -- 0x1F
+
+    -- Bypass dictionary with UNIT_SEP integration
+    local BypassTable = {
+    ["fuck"] = "fu〪ck",
+    ["discord"] = "di〪scord",
+    ["shit"] = "shi〪t",
+    ["nigger"] = "ⴖigger",
+    ["nigga"] = "ⴖigga",
+    ["cock"] = "ᲃock",
+    ["hoe"] = "bi〪tch",
+    ["bitch"] = "bi〪tch",
+    ["slut"] = "sIut",
+	["slave"] = "sIave",
+	["ass"] = "aรร",
+	["sex"] = "s〪ex",
+	["suck"] = "รuck",
+	["fucking"] = "fu〪cking",
+	["retard"] = "ꞅetard",
+	["retarded"] = "ꞅetarded",
+	["kill"] = "ki〪ll",
+	["faggot"] = "fa〪ggot",
+	["fag"] = "fa〪g",
+	["cum"] = "cu〪m",
+	["negro"] = "ⴖegro",
+	["blackie"] = "blac〪kie",
+	["dick"] = "di〪ck",
+	["pussy"] = "pus〪sy",
+	["tit"] = "ti〪t",
+	["tittie"] = "ti〪ttie",
+	["titty"] = "ti〪tty",
+	["boob"] = "boo〪b",
+	["boobie"] = "boo〪bie",
+	["booby"] = "boo〪by",
+	["hoe"] = "ho〪e",
+	["fatty"] = "fa〪tty",
+	["fattie"] = "fa〪ttie",
+	["fat"] = "fa〪t",
+	["fatso"] = "fa〪tso",
+	["fatass"] = "fa〪taรร",
+	["asshole"] = "aรรh〪ole",
+	["buthole"] = "bu〪thole",
+	["butthole"] = "bu〪tthole",
+	["hole"] = "h〪ole",
+	[""] = "",
+	[""] = "",
+	[""] = "",
+
+
+
+
+
+
+
+
+
+-- s'ss section
+    ["niggers"] = "ⴖiggers",
+    ["niggas"] = "ⴖiggas",
+    ["cocks"] = "ᲃocks",
+    ["hoes"] = "bi〪tchs",
+    ["bitches"] = "bi〪tches",
+    ["sluts"] = "sIuts",
+	["slaves"] = "sIaves",
+	["niggerish"] = "ⴖiggerish",
+	["faggots"] = "fa〪ggots",
+	["fags"] = "fa〪gs",
+	["cums"] = "cu〪ms",
+	["negros"] = "ⴖegros",
+	["blackies"] = "blac〪kies",
+	["dicks"] = "di〪cks",
+	["pussies"] = "pus〪sies",
+	["hoes"] = "ho〪es",
+	[""] = "",
+	[""] = "",
+	[""] = "",
+	["tits"] = "ti〪ts",
+	["titties"] = "ti〪tties",
+	["tit"] = "ti〪t",
+	["tittys"] = "ti〪ttys",
+	["boobs"] = "boo〪bs",
+	["boobies"] = "boo〪bies",
+	["boobys"] = "boo〪bys",
+	["assholes"] = "aรรholes",
+	["butholes"] = "bu〪tholes",
+	["fattys"] = "fa〪ttys",
+	["fatties"] = "fa〪tties",
+	["fats"] = "fa〪ts",
+	["assholes"] = "aรรh〪oles",
+	["butholes"] = "bu〪tholes",
+	["buttholes"] = "bu〪ttholes",
+	["holes"] = "h〪oles",
+
+
+
+
+
+
+
+-- extras
+
+    ["niger"] = "ⴖiger",
+    ["niga"] = "ⴖiga",
+	["fucktard"] = "fu〪cktard",
+	["fuckwad"] = "fu〪ckwad",
+	["killed"] = "ki〪lled",
+	["enslaved"] = "ensIaved",
+	["cummed"] = "cu〪mmed",
+	["cumslut"] = "cu〪msIut",
+	["neggro"] = "ⴖeggro",
+	[""] = "",
+	[""] = "",
+    }
+
+    -- Enhanced bypass function with space replacement
+    local function BypassString(text)
+        -- Convert spaces to UNIT_SEP
+        text = text:gsub("%s", UNIT_SEP)
+        
+        -- Apply word bypasses
+        for word, replacement in pairs(BypassTable) do
+            text = text:gsub(word:lower(), replacement:lower())
+        end
+        
+        return text
+    end
+
+    -- Optimized message sender
+    local function SendMessage(message)
+        if #message < 1 then return end
+        
+        local bypassed = BypassString(message)
+        
+        if ChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+            -- New chat system
+            pcall(function()
+                ChatService.TextChannels.RBXGeneral:SendAsync(bypassed)
+            end)
+        else
+            -- Legacy chat system
+            pcall(function()
+                game:GetService("ReplicatedStorage")
+                    .DefaultChatSystemChatEvents
+                    .SayMessageRequest:FireServer(bypassed, "All")
+            end)
+        end
+    end
+
+    -- Universal chat hook (works for most games)
+    local function SetupChatHook()
+        -- Try to find chat bar automatically
+        for _, gui in ipairs(LocalPlayer:WaitForChild("PlayerGui"):GetDescendants()) do
+            if gui:IsA("TextBox") and gui.Name:lower():find("chat") then
+                local originalEvent = gui.FocusLost
+                
+                -- Store the original function
+                local originalFocusLost = gui.FocusLost
+                
+                gui.FocusLost:Connect(function(enterPressed)
+                    if enterPressed and #gui.Text > 0 then
+                        SendMessage(gui.Text)
+                        gui.Text = ""
+                        
+                        -- This is the fix - release focus immediately after sending
+                        if not gui:IsFocused() then
+                            gui:ReleaseFocus()
+                        else
+                            -- If still focused, release after a small delay
+                            task.spawn(function()
+                                task.wait(0.1)
+                                if gui:IsFocused() then
+                                    gui:ReleaseFocus()
+                                end
+                            end)
+                        end
+                    end
+                end)
+                break
+            end
+        end
+    end
+
+    -- Auto-initialize
+    if LocalPlayer.Character then
+        SetupChatHook()
+    else
+        LocalPlayer.CharacterAdded:Connect(SetupChatHook)
+    end
+
+    warn("UNIT_SEP Chat Bypass Activated! | "..os.date("%X"))
+end
+
+-- Add controls to the Main tab
+
+
+bypassGroup:AddToggle('EnableBypass', {
+    Text = 'Enable Chat Bypass',
+    Default = false,
+    Callback = function(state)
+        chatBypassEnabled = state
+        if state then
+            LoadChatBypass()
+            Library:Notify("Chat bypass enabled", 3)
+        else
+            Library:Notify("Chat bypass disabled", 3)
+        end
+    end
+})
+
+-- Add this to your existing script where you define other UI elements
+local soundGroup = Tabs.Main:AddLeftGroupbox('Sound Controls')
+
+-- Add toggle for sound control
+soundGroup:AddToggle('EnableSoundControl', {
+    Text = 'Mute Non-Voice Sounds',
+    Default = false,
+    Callback = function(state)
+        local SoundService = game:GetService("SoundService")
+        
+        -- Function to check if a sound is Voice Chat
+        local function isVoiceChat(sound)
+            return sound:GetAttribute("VoiceChatSound") or sound.Name == "VoiceChat"
+        end
+
+        if state then
+            -- Lower volume for all NON-Voice sounds
+            for _, sound in ipairs(workspace:GetDescendants()) do
+                if sound:IsA("Sound") and not isVoiceChat(sound) then
+                    sound.Volume = Options.SoundVolume.Value  -- Use slider value
+                end
+            end
+
+            -- Connect to detect new sounds
+            workspace.DescendantAdded:Connect(function(descendant)
+                if descendant:IsA("Sound") and not isVoiceChat(descendant) then
+                    descendant.Volume = Options.SoundVolume.Value
+                end
+            end)
+            
+            Library:Notify("Non-voice sounds muted", 2)
+        else
+            -- Restore original volumes (note: this won't restore original volumes if they were different)
+            for _, sound in ipairs(workspace:GetDescendants()) do
+                if sound:IsA("Sound") and not isVoiceChat(sound) then
+                    sound.Volume = 1  -- Restore to full volume
+                end
+            end
+            Library:Notify("Non-voice sounds restored", 2)
+        end
+    end
+})
+
+-- Add volume slider
+soundGroup:AddSlider('SoundVolume', {
+    Text = 'Non-Voice Volume',
+    Default = 0.3,
+    Min = 0,
+    Max = 1,
+    Rounding = 1,
+    Compact = false,
+    Callback = function(value)
+        -- Update volume for all non-voice sounds if toggle is enabled
+        if Options.EnableSoundControl.Value then
+            local SoundService = game:GetService("SoundService")
+            
+            local function isVoiceChat(sound)
+                return sound:GetAttribute("VoiceChatSound") or sound.Name == "VoiceChat"
+            end
+
+            for _, sound in ipairs(workspace:GetDescendants()) do
+                if sound:IsA("Sound") and not isVoiceChat(sound) then
+                    sound.Volume = value
+                end
+            end
+        end
+    end
+})
+-- ====== REST OF YOUR EXISTING CODE ======
+
+local MenuGroup = Tabs['UI Settings']:AddLeftGroupbox('Menu')
+
+MenuGroup:AddButton('Unload', function() Library:Unload() end)
+MenuGroup:AddLabel('Menu bind'):AddKeyPicker('MenuKeybind', { Default = 'End', NoUI = true, Text = 'Menu keybind' })
+Library.ToggleKeybind = Options.MenuKeybind
+
+MenuGroup:AddToggle('KeybindListToggle', {
+    Text = 'Show Keybind List',
+    Default = false,
+    Callback = function(state)
+        Library.KeybindFrame.Visible = state
+    end
+})
+
+ThemeManager:SetLibrary(Library)
+SaveManager:SetLibrary(Library)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({ 'MenuKeybind' })
+ThemeManager:SetFolder('MaddieHack')
+SaveManager:SetFolder('MaddieHack/configs')
+SaveManager:BuildConfigSection(Tabs['UI Settings'])
+ThemeManager:ApplyToTab(Tabs['UI Settings'])
+SaveManager:LoadAutoloadConfig()
+
+Library:SetWatermarkVisibility(true)
+
+local StatsService = game:GetService("Stats")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+local FrameTimer = tick()
+local FrameCounter = 0
+local FPS = 60
+local StartTime = tick()
+
+local function getExecutor()
+    if syn then return "Synapse X"
+    elseif secure_call then return "ScriptWare"
+    elseif identifyexecutor then return identifyexecutor()
+    else return "Unknown" end
+end
+
+local function getGameName(placeId)
+    local success, result = pcall(function()
+        return MarketplaceService:GetProductInfo(placeId).Name
+    end)
+    return success and result or "Unknown Game"
+end
+
+local WatermarkConnection = game:GetService("RunService").RenderStepped:Connect(function()
+    FrameCounter += 1
+    if (tick() - FrameTimer) >= 1 then
+        FPS = FrameCounter
+        FrameTimer = tick()
+        FrameCounter = 0
+    end
+
+    local Ping = math.floor(StatsService.Network.ServerStatsItem["Data Ping"]:GetValue())
+    local Executor = getExecutor()
+    local Uptime = math.floor(tick() - StartTime)
+    local UptimeFormatted = string.format("%02d:%02d", math.floor(Uptime / 60), Uptime % 60)
+    local GameName = getGameName(game.PlaceId)
+
+    Library:SetWatermark(("[ Made by thedudethat ] | $ Beta $ |  %s | %s (%d) | Uptime: %s | FPS %d | %d ms"):format(
+        Executor, GameName, game.PlaceId, UptimeFormatted, math.floor(FPS), Ping
+    ))
+end)
+
+Library:OnUnload(function()
+    WatermarkConnection:Disconnect()
+    print('Unloaded!')
+    Library.Unloaded = true
+end)
