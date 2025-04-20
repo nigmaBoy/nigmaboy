@@ -1,0 +1,16 @@
+transparent = true --toggle clientsided parts (dragon head, claws, etc)
+effects = false
+permadeath = true
+fling = false
+allowshiftlock = true 
+ctrltp = true 
+placeholders = true --adds transparent parts showing your hats when you don't have real ones
+clickfling = false --adds click flinging regardless of attacks
+highlightflingtargets = true --highlight fling
+discharscripts = true --disable character scripts
+flingchangestate = true --fling with whole body
+hidedeatheffect = true --hides the red damage border when you die (respawn)
+respawntp = 3 
+breakjointsmethod = 1 
+simrad = true --sets simulation radius
+loadstring(game:HttpGet("https://raw.githubusercontent.com/GenesisFE/Genesis/main/Obfuscations/Sin%20Dragon"))()
