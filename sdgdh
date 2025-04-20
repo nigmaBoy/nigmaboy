@@ -1,16 +1,16 @@
 --[[-----------------------------------------------------------------------------------------
-    MySexyGui - Enhanced GUI Library v0.3.4
+    MySexyGui - Enhanced GUI Library v0.3.4 (Smoother Drag Update)
     By: Assistant (Based on User Request)
-    Date: 2025-04-12
+    Date: 2025-04-12 (Revision Date: 2025-04-14)
 
     Features:
-    - Draggable Window
+    - Draggable Window (Smoother - Mouse can leave bar)
     - Tabs with Content Switching
     - Horizontally Scrollable Tab Bar (if needed)
     - Dedicated "Settings" Tab (fixed on the right)
     - Keybind to Toggle Visibility
     - Elements: Button, Toggle
-    - Enhanced Slider (Click/Drag Bar, Drag Nub, Value Display, 1.5x Hitbox)
+    - Enhanced Slider (Smoother Drag - Mouse can leave hitbox, Click/Drag Bar, Drag Nub, Value Display, 1.5x Hitbox)
     - Basic Theming Structure
 -------------------------------------------------------------------------------------------]]
 
@@ -63,40 +63,29 @@ local function CreateElement(elementType, properties)
     return element
 end
 
--- Corrected ApplyCorner function
 local function ApplyCorner(guiObject, radius)
     if not guiObject then return end
     local corner = guiObject:FindFirstChildWhichIsA("UICorner")
-    if not corner then
-        corner = Instance.new("UICorner")
-        corner.Parent = guiObject -- Set parent *after* creation
-    end
-    corner.CornerRadius = UDim.new(0, radius or MySexyGui.Theme.CornerRadius)
-    return corner
+    if not corner then corner = Instance.new("UICorner"); corner.Parent = guiObject end
+    corner.CornerRadius = UDim.new(0, radius or MySexyGui.Theme.CornerRadius); return corner
 end
 
 local function ApplyStroke(guiObject, color, thickness)
     if not guiObject then return end
     local stroke = guiObject:FindFirstChildWhichIsA("UIStroke")
-     if not stroke then
-        stroke = Instance.new("UIStroke")
-        stroke.Parent = guiObject
-     end
-    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    stroke.Color = color or MySexyGui.Theme.Outline
-    stroke.Thickness = thickness or 1
-    stroke.Enabled = (thickness or 1) > 0
-    return stroke
+    if not stroke then stroke = Instance.new("UIStroke"); stroke.Parent = guiObject end
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; stroke.Color = color or MySexyGui.Theme.Outline; stroke.Thickness = thickness or 1; stroke.Enabled = (thickness or 1) > 0; return stroke
 end
 
 -- Element Adding Function (Helper, defined once)
 local ElementFunctions = {}
 do
-    local elementIndex = 0 -- This counter will be reset conceptually for each tab instance later
+    local elementIndex = 0 -- This counter resets conceptually per tab instance later
 
     function ElementFunctions:AddButton(opts)
-        opts=opts or{}; local t=opts.Text or"Button"; local cb=opts.Callback or function()print(t.." clicked")end; elementIndex=elementIndex+1
-        local b=CreateElement("TextButton",{Name=t.."_Button",Size=UDim2.new(1,-MySexyGui.Theme.Padding*2,0,MySexyGui.Theme.ElementHeight),Text=t,BackgroundColor3=MySexyGui.Theme.Primary,TextColor3=MySexyGui.Theme.Text,Font=MySexyGui.Theme.Font,TextSize=MySexyGui.Theme.FontSize,LayoutOrder=elementIndex,Parent=self.Page,AutoButtonColor=false})
+        opts=opts or{}; local t=opts.Text or"Button"; local cb=opts.Callback or function()print(t.." clicked")end; elementIndex=elementIndex+1; -- Use local index conceptually
+        local currentElementIndex = #self.Layout:GetChildren() + 1 -- Get actual layout order
+        local b=CreateElement("TextButton",{Name=t.."_Button",Size=UDim2.new(1,-MySexyGui.Theme.Padding*2,0,MySexyGui.Theme.ElementHeight),Text=t,BackgroundColor3=MySexyGui.Theme.Primary,TextColor3=MySexyGui.Theme.Text,Font=MySexyGui.Theme.Font,TextSize=MySexyGui.Theme.FontSize,LayoutOrder=currentElementIndex,Parent=self.Page,AutoButtonColor=false})
         ApplyCorner(b); b.MouseButton1Click:Connect(function()pcall(cb)end)
         b.MouseEnter:Connect(function()b.BackgroundColor3=Color3.Lerp(MySexyGui.Theme.Primary,Color3.new(1,1,1),0.2)end)
         b.MouseLeave:Connect(function()b.BackgroundColor3=MySexyGui.Theme.Primary end)
@@ -104,48 +93,90 @@ do
     end
 
     function ElementFunctions:AddToggle(opts)
-        opts=opts or{}; local t=opts.Text or"Toggle"; local d=opts.Default or false; local cb=opts.Callback or function(s)print(t.." state:"..tostring(s))end; elementIndex=elementIndex+1
-        local tf=CreateElement("Frame",{Name=t.."_TogFrm",Size=UDim2.new(1,-MySexyGui.Theme.Padding*2,0,MySexyGui.Theme.ElementHeight),BackgroundTransparency=1,LayoutOrder=elementIndex,Parent=self.Page})
+        opts=opts or{}; local t=opts.Text or"Toggle"; local d=opts.Default or false; local cb=opts.Callback or function(s)print(t.." state:"..tostring(s))end; elementIndex=elementIndex+1;
+        local currentElementIndex = #self.Layout:GetChildren() + 1
+        local tf=CreateElement("Frame",{Name=t.."_TogFrm",Size=UDim2.new(1,-MySexyGui.Theme.Padding*2,0,MySexyGui.Theme.ElementHeight),BackgroundTransparency=1,LayoutOrder=currentElementIndex,Parent=self.Page})
         local tl=CreateElement("TextLabel",{Name="Lbl",Size=UDim2.new(1,-60,1,0),Position=UDim2.new(0,MySexyGui.Theme.Padding,0,0),BackgroundTransparency=1,Font=MySexyGui.Theme.Font,TextSize=MySexyGui.Theme.FontSize,TextColor3=MySexyGui.Theme.Text,Text=t,TextXAlignment=Enum.TextXAlignment.Left,Parent=tf})
         local sws=40;local sh=20;local sw=CreateElement("TextButton",{Name="Sw",Size=UDim2.new(0,sws,0,sh),Position=UDim2.new(1,-sws-MySexyGui.Theme.Padding,0.5,-sh/2),BackgroundColor3=MySexyGui.Theme.Secondary,Text="",Parent=tf,AutoButtonColor=false});ApplyCorner(sw)
         local nbs=sh-4;local nb=CreateElement("Frame",{Name="Nb",Size=UDim2.new(0,nbs,0,nbs),Position=UDim2.new(0,2,0.5,-nbs/2),BackgroundColor3=MySexyGui.Theme.TextDisabled,BorderSizePixel=0,Parent=sw});ApplyCorner(nb)
         local st=d; local function upd()local tc=st and MySexyGui.Theme.Primary or MySexyGui.Theme.Secondary;local tnc=st and MySexyGui.Theme.TextActive or MySexyGui.Theme.TextDisabled;local tnp=st and UDim2.new(1,-nbs-2,0.5,-nbs/2)or UDim2.new(0,2,0.5,-nbs/2);TweenService:Create(sw,TweenInfo.new(0.15),{BackgroundColor3=tc}):Play();TweenService:Create(nb,TweenInfo.new(0.15),{BackgroundColor3=tnc,Position=tnp}):Play()end
         sw.MouseButton1Click:Connect(function()st=not st;upd();pcall(cb,st)end);upd()
-        local toggleObj = {Frame=tf,Set=function(ns)st=ns;upd()end,Get=function()return st end}; self.Elements[t]=toggleObj; return toggleObj
+        local toggleObj = {Frame=tf,Set=function(ns)if st~=ns then st=ns;upd()end end,Get=function()return st end}; self.Elements[t]=toggleObj; return toggleObj
     end
 
-    function ElementFunctions:AddSlider(opts) -- Enhanced Slider v0.3.4 (1.5x Hitbox)
-        opts=opts or{};local t=opts.Text or"Slider";local min=opts.Min or 0;local max=opts.Max or 100;local def=opts.Default or min;local inc=opts.Increment or 1;local sfx=opts.Suffix or"";local cb=opts.Callback or function(v)print(t.." value:"..v)end;elementIndex=elementIndex+1
+    function ElementFunctions:AddSlider(opts) -- Enhanced Slider v0.3.4 (Smoother Drag Update)
+        opts=opts or{};local t=opts.Text or"Slider";local min=opts.Min or 0;local max=opts.Max or 100;local def=opts.Default or min;local inc=opts.Increment or 1;local sfx=opts.Suffix or"";local cb=opts.Callback or function(v)print(t.." value:"..v)end; elementIndex=elementIndex+1;
+        local currentElementIndex = #self.Layout:GetChildren() + 1
         local fh=MySexyGui.Theme.SliderBarHeight+MySexyGui.Theme.FontSize+MySexyGui.Theme.Padding
-        local sf=CreateElement("Frame",{Name=t.."_SldFrm",Size=UDim2.new(1,-MySexyGui.Theme.Padding*2,0,fh),BackgroundTransparency=1,LayoutOrder=elementIndex,Parent=self.Page})
+        local sf=CreateElement("Frame",{Name=t.."_SldFrm",Size=UDim2.new(1,-MySexyGui.Theme.Padding*2,0,fh),BackgroundTransparency=1,LayoutOrder=currentElementIndex,Parent=self.Page})
         local sl=CreateElement("TextLabel",{Name="Lbl",Size=UDim2.new(0.7,-MySexyGui.Theme.Padding,0,MySexyGui.Theme.FontSize),Position=UDim2.new(0,MySexyGui.Theme.Padding,0,0),BackgroundTransparency=1,Font=MySexyGui.Theme.Font,TextSize=MySexyGui.Theme.FontSize,TextColor3=MySexyGui.Theme.Text,Text=t,TextXAlignment=Enum.TextXAlignment.Left,Parent=sf})
         local vl=CreateElement("TextLabel",{Name="ValLbl",Size=UDim2.new(0.3,-MySexyGui.Theme.Padding,0,MySexyGui.Theme.FontSize),Position=UDim2.new(0.7,MySexyGui.Theme.Padding,0,0),BackgroundTransparency=1,Font=MySexyGui.Theme.Font,TextSize=MySexyGui.Theme.FontSize,TextColor3=MySexyGui.Theme.TextDisabled,Text="",TextXAlignment=Enum.TextXAlignment.Right,Parent=sf})
         local sb=CreateElement("Frame",{Name="Bar",Size=UDim2.new(1,-MySexyGui.Theme.Padding*2,0,MySexyGui.Theme.SliderBarHeight),Position=UDim2.new(0,MySexyGui.Theme.Padding,0,MySexyGui.Theme.FontSize+2),BackgroundColor3=MySexyGui.Theme.Secondary,BorderSizePixel=0,Parent=sf});ApplyCorner(sb)
         local sfll=CreateElement("Frame",{Name="Fill",Size=UDim2.new(0,0,1,0),BackgroundColor3=MySexyGui.Theme.Primary,BorderSizePixel=0,Parent=sb});ApplyCorner(sfll)
         local sn=CreateElement("Frame",{Name="Nub",Size=UDim2.new(0,MySexyGui.Theme.SliderNubSize,0,MySexyGui.Theme.SliderNubSize),Position=UDim2.new(0,-MySexyGui.Theme.SliderNubSize/2,0.5,-MySexyGui.Theme.SliderNubSize/2),BackgroundColor3=MySexyGui.Theme.TextActive,BorderSizePixel=0,ZIndex=sb.ZIndex+1,Parent=sb});ApplyCorner(sn,3)
-        local cv=def;local isDragging=false; local dragConnection=nil; local releaseConnection=nil
+
+        local cv=def; local isDragging=false; local mouseMoveConn=nil; local mouseReleaseConn=nil -- Connections for global listeners
 
         local function rti(v) if inc==0 then return v end; local iv=1/(inc); return math.floor(v*iv+0.5)/iv end
         local decimalPlaces = 0; if inc > 0 and inc < 1 then decimalPlaces = math.max(0, string.len(tostring(inc):match("%.(%d*)") or "")) end
 
         local function uv(v, fromDrag) v=math.clamp(v,min,max);local p=(max==min)and 0 or((v-min)/(max-min));local rv=rti(v);local rp=(max==min)and 0 or((rv-min)/(max-min));local tf=UDim2.new(rp,0,1,0); local tn=UDim2.new(rp,-MySexyGui.Theme.SliderNubSize/2,0.5,-MySexyGui.Theme.SliderNubSize/2);if fromDrag then sfll.Size=tf; sn.Position=tn;else local ti=TweenInfo.new(0.1); TweenService:Create(sfll,ti,{Size=tf}):Play(); TweenService:Create(sn,ti,{Position=tn}):Play();end;vl.Text=string.format("%."..decimalPlaces.."f",rv)..sfx; cv=rv end
-        local function ufi(inputPos) local barStartX=sb.AbsolutePosition.X; local barWidth=sb.AbsoluteSize.X; if barWidth<=0 then return end; local p=math.clamp((inputPos.X-barStartX)/barWidth,0,1); local nv=min+p*(max-min); local rv=rti(nv); if rv~=cv then uv(rv,true); pcall(cb,cv) end end
 
-        -- Invisible drag area (1.5x Height Hitbox - Centered)
-        local da=CreateElement("TextButton",{
-            Name="DrgArea",
-            AnchorPoint = Vector2.new(0.5, 0.5), -- Center the anchor point
-            Size=UDim2.new(1, 10, 0, MySexyGui.Theme.SliderNubSize * 1.5), -- Full width + buffer, 1.5x nub height vertically
-            Position=UDim2.new(0.5, 0, 0.5, 0), -- Position centered on the slider bar
-            BackgroundTransparency=1,
-            Text="",
-            ZIndex=sn.ZIndex+1, -- Ensure it's on top for input
-            Parent=sb -- Still parented to the slider bar
-        })
+        -- Update From Input function (calculates value based on mouse X relative to bar)
+        local function updateFromInputPos(inputPos)
+            local barStartX = sb.AbsolutePosition.X; local barWidth = sb.AbsoluteSize.X
+            if barWidth <= 0 then return end
+            local percentage = math.clamp((inputPos.X - barStartX) / barWidth, 0, 1)
+            local newValue = min + percentage * (max - min)
+            local roundedValue = rti(newValue)
+            if roundedValue ~= cv then
+                uv(roundedValue, true) -- Update visuals instantly during drag
+                pcall(cb, cv)         -- Call user callback
+            end
+        end
 
-        da.InputBegan:Connect(function(input) if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then isDragging=true;ufi(input.Position);if dragConnection then pcall(dragConnection.Disconnect,dragConnection)end;if releaseConnection then pcall(releaseConnection.Disconnect,releaseConnection)end; dragConnection=RunService.RenderStepped:Connect(function()if isDragging then local curPos=UserInputService:GetMouseLocation();local barStartX=sb.AbsolutePosition.X;local barWidth=sb.AbsoluteSize.X;if barWidth<=0 then return end;local p=math.clamp((curPos.X-barStartX)/barWidth,0,1);local nv=min+p*(max-min);local rv=rti(nv);if rv~=cv then uv(rv,true);pcall(cb,cv)end else if dragConnection then pcall(dragConnection.Disconnect,dragConnection);dragConnection=nil end end end); releaseConnection=UserInputService.InputEnded:Connect(function(endInput)if endInput.UserInputType==Enum.UserInputType.MouseButton1 or endInput.UserInputType==Enum.UserInputType.Touch then isDragging=false;if releaseConnection then pcall(releaseConnection.Disconnect,releaseConnection);releaseConnection=nil end end end)end end)
-        uv(cv); local sliderObj={Frame=sf,Set=function(nv)uv(nv,false)end,Get=function()return cv end}; self.Elements[t]=sliderObj;return sliderObj
+        -- Mouse Move Handler (connected globally during drag)
+        local function onMouseMove()
+            if isDragging then
+                 local mousePos = UserInputService:GetMouseLocation()
+                 updateFromInputPos(mousePos)
+            else -- Safety disconnect if flag somehow false but connection exists
+                 if mouseMoveConn then mouseMoveConn:Disconnect(); mouseMoveConn = nil end
+            end
+        end
+
+        -- Mouse Release Handler (connected globally during drag)
+        local function onMouseRelease(input)
+             if isDragging and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+                 isDragging = false
+                 -- Disconnect global listeners
+                 if mouseMoveConn then mouseMoveConn:Disconnect(); mouseMoveConn = nil end
+                 if mouseReleaseConn then mouseReleaseConn:Disconnect(); mouseReleaseConn = nil end
+             end
+        end
+
+        -- Invisible drag area
+        local da=CreateElement("TextButton",{Name="DrgArea",AnchorPoint=Vector2.new(0.5,0.5),Size=UDim2.new(1,10,0,MySexyGui.Theme.SliderNubSize*1.5),Position=UDim2.new(0.5,0,0.5,0),BackgroundTransparency=1,Text="",ZIndex=sn.ZIndex+1,Parent=sb})
+
+        da.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                isDragging = true
+                updateFromInputPos(input.Position) -- Update immediately on click
+
+                -- Disconnect any existing listeners just in case
+                if mouseMoveConn then mouseMoveConn:Disconnect() end
+                if mouseReleaseConn then mouseReleaseConn:Disconnect() end
+
+                -- Connect GLOBAL listeners for smooth dragging
+                mouseMoveConn = RunService.RenderStepped:Connect(onMouseMove) -- Use RenderStepped for smoothness
+                mouseReleaseConn = UserInputService.InputEnded:Connect(onMouseRelease)
+            end
+        end)
+
+        uv(cv, false); -- Initialize slider visual state without tween
+        local sliderObj={Frame=sf,Set=function(nv)if cv~=nv then uv(nv, false)end end,Get=function()return cv end}; self.Elements[t]=sliderObj;return sliderObj
     end
+
 end
 
 -- Window Creation
@@ -173,7 +204,48 @@ function MySexyGui:CreateWindow(options)
     CreateElement("Frame", { Name="TabLine", Size=UDim2.new(1,0,0,1), Position=UDim2.new(0,0,1,0), BackgroundColor3=MySexyGui.Theme.Outline, BorderSizePixel=0, ZIndex=3, Parent=tabArea })
     local contentArea = CreateElement("Frame", { Name="ContentArea", Size=UDim2.new(1,0,1,-(topBar.Size.Y.Offset+tabArea.Size.Y.Offset)), Position=UDim2.new(0,0,0,topBar.Size.Y.Offset+tabArea.Size.Y.Offset), BackgroundTransparency=1, BorderSizePixel=0, ClipsDescendants=true, Parent=windowFrame })
 
-    local dragging=false;local dragStart=nil;local startPos=nil;topBar.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then dragging=true;dragStart=i.Position;startPos=windowFrame.Position;local changedConn;changedConn=i.Changed:Connect(function()if i.UserInputState==Enum.UserInputState.End then dragging=false;if changedConn then changedConn:Disconnect() end end end)end end);topBar.InputChanged:Connect(function(i)if(i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch)and dragging then local d=i.Position-dragStart;windowFrame.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+d.X,startPos.Y.Scale,startPos.Y.Offset+d.Y)end end)
+    -- Window Dragging Logic (Smoother Update)
+    local isWindowDragging = false
+    local windowDragStartMouse = nil -- Mouse position when drag started
+    local windowDragStartPos = nil -- Frame position when drag started
+    local windowMouseMoveConn = nil
+    local windowMouseReleaseConn = nil
+
+    local function onWindowMouseMove()
+        if isWindowDragging then
+            local currentMousePos = UserInputService:GetMouseLocation()
+            local delta = currentMousePos - windowDragStartMouse
+            windowFrame.Position = UDim2.new(windowDragStartPos.X.Scale, windowDragStartPos.X.Offset + delta.X,
+                                             windowDragStartPos.Y.Scale, windowDragStartPos.Y.Offset + delta.Y)
+        else -- Safety disconnect
+             if windowMouseMoveConn then windowMouseMoveConn:Disconnect(); windowMouseMoveConn = nil end
+        end
+    end
+
+    local function onWindowMouseRelease(input)
+        if isWindowDragging and input.UserInputType == Enum.UserInputType.MouseButton1 then
+             isWindowDragging = false
+             if windowMouseMoveConn then windowMouseMoveConn:Disconnect(); windowMouseMoveConn = nil end
+             if windowMouseReleaseConn then windowMouseReleaseConn:Disconnect(); windowMouseReleaseConn = nil end
+        end
+    end
+
+    topBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            isWindowDragging = true
+            windowDragStartMouse = UserInputService:GetMouseLocation() -- Use global mouse pos
+            windowDragStartPos = windowFrame.Position
+
+            -- Disconnect old listeners if they exist
+            if windowMouseMoveConn then windowMouseMoveConn:Disconnect() end
+            if windowMouseReleaseConn then windowMouseReleaseConn:Disconnect() end
+
+            -- Connect global listeners
+            windowMouseMoveConn = RunService.RenderStepped:Connect(onWindowMouseMove)
+            windowMouseReleaseConn = UserInputService.InputEnded:Connect(onWindowMouseRelease)
+        end
+    end)
+    -- Removed topBar.InputChanged connection
 
     local window = { ScreenGui=screenGui, Frame=windowFrame, ContentArea=contentArea, TabBar=tabBar, TabLayout=tabLayout, Tabs={}, TabButtons={}, ActiveTab=nil, Keybind=keybindCode, IsVisible=windowFrame.Visible, SettingsTab=nil }
     MySexyGui.Windows[screenGui] = window
@@ -196,7 +268,7 @@ function MySexyGui:CreateWindow(options)
 
     function window:ToggleVisibility()self:SetVisibility(not self.IsVisible)end
     function window:SetVisibility(v)self.IsVisible=v;self.Frame.Visible=v;self.ScreenGui.Enabled=v end
-    function window:Destroy()if self.ScreenGui then pcall(function()self.ScreenGui:Destroy()end)end;MySexyGui.Windows[screenGui]=nil;if MySexyGui.KeybindConnections[screenGui]then pcall(MySexyGui.KeybindConnections[screenGui].Disconnect,MySexyGui.KeybindConnections[screenGui]);MySexyGui.KeybindConnections[screenGui]=nil end end
+    function window:Destroy()if self.ScreenGui then pcall(function()self.ScreenGui:Destroy()end)end;MySexyGui.Windows[screenGui]=nil;if MySexyGui.KeybindConnections[screenGui]then pcall(MySexyGui.KeybindConnections[screenGui].Disconnect,MySexyGui.KeybindConnections[screenGui]);MySexyGui.KeybindConnections[screenGui]=nil; --[[Cleanup window drag listeners if needed]] if windowMouseMoveConn then windowMouseMoveConn:Disconnect() end; if windowMouseReleaseConn then windowMouseReleaseConn:Disconnect() end; end end
 
     closeButton.MouseButton1Click:Connect(function() window:SetVisibility(false) end)
 
@@ -205,6 +277,5 @@ function MySexyGui:CreateWindow(options)
     return window
 end
 
--- No automatic cleanup based on script context
-
+-- Return the library table for use
 return MySexyGui
