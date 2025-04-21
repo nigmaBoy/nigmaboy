@@ -1,10 +1,7 @@
 --[[-----------------------------------------------------------------------------------------
-    FreakyGui - Enhanced GUI Library v0.5.0 (Fixed & Refined v2 - Executor Safe)
+    FreakyGui - Enhanced GUI Library v0.5.0
     By: Assistant (Based on User Request)
     Date: 2025-04-16 (Assumed Date)
-
-    Changes v2:
-    - Removed PlayerRemoving connection for better executor compatibility.
 
     Features v0.5.0:
     - Aesthetics: Subtle gradients, improved button feedback (hover/press), cleaner look.
@@ -113,7 +110,6 @@ local function ApplyStroke(guiObject, color, thickness)
     stroke.Color = color or FreakyGui.Theme.Outline
     stroke.Thickness = thickness or 1
     stroke.Enabled = (thickness or 1) > 0
-    -- Tag based on the *intended* default color, attributes will handle state changes
     CollectionService:AddTag(stroke, "FreakyGui_Theme_Outline")
     return stroke
 end
@@ -139,7 +135,6 @@ local function ApplyGradient(guiObject, themeColorKey, themeEnabledKey, themeGra
         NumberSequenceKeypoint.new(1, 0) -- Fully opaque at bottom
     })
     grad.Rotation = 90 -- Top to bottom
-    grad.Enabled = true -- Ensure it's enabled if theme says so
     CollectionService:AddTag(grad, "FreakyGui_Theme_Gradient_" .. themeColorKey) -- Tag for updates
 end
 
@@ -147,36 +142,18 @@ local function ApplyTooltip(guiObject, text)
     if not text or text == "" then return end -- Only apply if text exists
 
     guiObject.MouseEnter:Connect(function(x, y)
-        -- Ensure TooltipLabel exists and is parented to a valid ScreenGui
-        if not TooltipLabel or not TooltipLabel.Parent or not TooltipLabel.Parent:IsA("ScreenGui") then return end
-
+        if not TooltipLabel then return end -- Should exist, but safety check
         TooltipLabel.Text = text
         local textSize = TextService:GetTextSize(text, FreakyGui.Theme.TooltipFontSize, FreakyGui.Theme.Font, Vector2.new(300, math.huge)) -- Max width 300
-        -- Calculate required size based on text and padding
-        local padding = TooltipLabel:FindFirstChildWhichIsA("UIPadding")
-        local padX = (padding and (padding.PaddingLeft.Offset + padding.PaddingRight.Offset)) or 8
-        local padY = (padding and (padding.PaddingTop.Offset + padding.PaddingBottom.Offset)) or 4
-        TooltipLabel.Size = UDim2.new(0, textSize.X + padX, 0, textSize.Y + padY)
-
-        -- Initial Position below and right of mouse
-        local newX, newY = x + 15, y + 10
-
-        -- Ensure tooltip stays on screen (Improved)
+        TooltipLabel.Size = UDim2.new(0, textSize.X + FreakyGui.Theme.Padding, 0, textSize.Y + FreakyGui.Theme.Padding / 2)
+        TooltipLabel.Position = UDim2.fromOffset(x + 15, y + 10) -- Position below and right of mouse
+        -- Ensure tooltip stays on screen (basic implementation)
         local screen = GetScreenSize()
-        local absSize = TooltipLabel.AbsoluteSize -- Get size *after* setting text and size
-        local currentGui = TooltipLabel.Parent -- Get the ScreenGui it's parented to
-
-        -- Check right boundary
-        if x + 15 + absSize.X > screen.X - 10 then
-            newX = x - absSize.X - 10 -- Move left of mouse
-            if newX < 10 then newX = 10 end -- Don't go off left edge
-        end
-        -- Check bottom boundary
-        if y + 10 + absSize.Y > screen.Y - 10 then
-            newY = y - absSize.Y - 10 -- Move above mouse
-            if newY < 10 then newY = 10 end -- Don't go off top edge
-        end
-
+        local absPos = TooltipLabel.AbsolutePosition
+        local absSize = TooltipLabel.AbsoluteSize
+        local newX, newY = TooltipLabel.Position.X.Offset, TooltipLabel.Position.Y.Offset
+        if absPos.X + absSize.X > screen.X - 10 then newX = screen.X - absSize.X - 10 end
+        if absPos.Y + absSize.Y > screen.Y - 10 then newY = y - absSize.Y - 10 end -- Move above mouse if below screen
         TooltipLabel.Position = UDim2.fromOffset(newX, newY)
         TooltipLabel.Visible = true
     end)
@@ -186,38 +163,17 @@ local function ApplyTooltip(guiObject, text)
     end)
 end
 
-
 local function CaptureInput(window, element)
     if not window or not window.ScreenGui then return end
-    -- Allow capture only if nothing else is capturing OR if a dropdown is open AND the element capturing is the dropdown button itself
-    if FreakyGui.ActiveDropdown and element ~= FreakyGui.ActiveDropdown.Button then
-         -- print("Input capture blocked by active dropdown")
-         return false -- Indicate capture failed
-    end
-    if FreakyGui.InputCaptureConnections[window.ScreenGui] and FreakyGui.InputCaptureConnections[window.ScreenGui] ~= element then
-         -- print("Input capture blocked by existing capture:", FreakyGui.InputCaptureConnections[window.ScreenGui])
-         return false -- Indicate capture failed
-    end
-    -- print("Input captured by:", element)
+    if FreakyGui.ActiveDropdown and element ~= FreakyGui.ActiveDropdown.Button then return end -- Prevent capture if dropdown is open unless it's the dropdown itself
     FreakyGui.InputCaptureConnections[window.ScreenGui] = element or true
-    return true -- Indicate capture succeeded
 end
 
 local function ReleaseInput(window, element)
     if not window or not window.ScreenGui then return end
     if FreakyGui.InputCaptureConnections[window.ScreenGui] == element then
-        -- print("Input released by:", element)
         FreakyGui.InputCaptureConnections[window.ScreenGui] = nil
     end
-end
-
--- Helper to safely update theme color property
-local function UpdateElementThemeColor(element, propertyName, themeKey)
-    if not FreakyGui.Theme[themeKey] then
-        warn("FreakyGui Theme Warning: Invalid theme key '"..tostring(themeKey).."' requested for " .. element:GetFullName() .. " (" .. propertyName .. ")")
-        return
-    end
-    pcall(function() element[propertyName] = FreakyGui.Theme[themeKey] end)
 end
 
 --[[---------------------------------------------------------------------------------------
@@ -231,10 +187,9 @@ do
 
     --[[ Base creation helpers (internal) ]]
     local function _CreateBaseFrame(parentContainer, parentLayout, opts, defaultSize, nameSuffix)
-        opts = opts or {}
         local order = GetNextLayoutOrder(parentLayout)
         local frame = Create("Frame", {
-            Name = (opts.Text or opts.Title or "Element") .. nameSuffix, -- Use Text or Title for name
+            Name = (opts.Text or "Element") .. nameSuffix,
             Size = opts.Size or defaultSize or UDim2.new(1, -(FreakyGui.Theme.Padding * 2), 0, FreakyGui.Theme.ElementHeight),
             Position = opts.Position, -- Allow overriding position if needed
             BackgroundTransparency = opts.BackgroundTransparency or 1,
@@ -247,7 +202,6 @@ do
     end
 
     local function _CreateBaseLabel(parent, opts, themeColorKey, nameSuffix)
-        opts = opts or {}
         local lbl = Create("TextLabel", {
             Name = (opts.Name or "Label") .. nameSuffix,
             Size = opts.Size or UDim2.new(1, 0, 1, 0),
@@ -260,7 +214,7 @@ do
             TextXAlignment = opts.Align or Enum.TextXAlignment.Left,
             TextYAlignment = opts.VAlign or Enum.TextYAlignment.Center,
             Parent = parent,
-            ZIndex = opts.ZIndex or (parent and parent.ZIndex + 1 or 1), -- Safe ZIndex
+            ZIndex = opts.ZIndex or parent.ZIndex + 1,
         })
         CollectionService:AddTag(lbl, "FreakyGui_Theme_" .. (themeColorKey or "Text"))
         return lbl
@@ -270,29 +224,20 @@ do
     function ElementFunctions:AddButton(parentObject, parentContainer, parentLayout, opts)
         opts=opts or{}; local t=opts.Text or"Button"; local cb=opts.Callback or function()print(t.." clicked")end;
         local order = GetNextLayoutOrder(parentLayout)
-        local b=Create("TextButton",{Name=t.."_Button", Size=UDim2.new(1,-(FreakyGui.Theme.Padding*2),0,FreakyGui.Theme.ElementHeight), BackgroundColor3=FreakyGui.Theme.Primary, TextColor3=FreakyGui.Theme.TextActive, Font=FreakyGui.Theme.Font, TextSize=FreakyGui.Theme.FontSize, Text=t, LayoutOrder=order, Parent=parentContainer, AutoButtonColor=false})
+        local b=Create("TextButton",{Name=t.."_Button", Size=UDim2.new(1,-(FreakyGui.Theme.Padding*2),0,FreakyGui.Theme.ElementHeight), BackgroundColor3=FreakyGui.Theme.Primary, TextColor3=FreakyGui.Theme.Text, Font=FreakyGui.Theme.Font, TextSize=FreakyGui.Theme.FontSize, Text=t, LayoutOrder=order, Parent=parentContainer, AutoButtonColor=false})
         ApplyCorner(b); ApplyStroke(b)
-        CollectionService:AddTag(b, "FreakyGui_Theme_Primary_BG"); CollectionService:AddTag(b, "FreakyGui_Theme_TextActive") -- Text on buttons is usually active
+        CollectionService:AddTag(b, "FreakyGui_Theme_Primary_BG"); CollectionService:AddTag(b, "FreakyGui_Theme_Text")
         ApplyTooltip(b, opts.Tooltip)
 
-        local originalColor = FreakyGui.Theme.Primary -- Store initial, might change with theme refresh
+        local originalColor = FreakyGui.Theme.Primary
         local hoverColor = FreakyGui.Theme.ButtonHover
         local pressColor = FreakyGui.Theme.ButtonPress
 
-        b.MouseEnter:Connect(function() TweenService:Create(b, TweenInfo.new(0.15), { BackgroundColor3 = FreakyGui.Theme.ButtonHover }):Play() end)
-        b.MouseLeave:Connect(function() TweenService:Create(b, TweenInfo.new(0.15), { BackgroundColor3 = FreakyGui.Theme.Primary }):Play() end) -- Use current Primary
-        b.MouseButton1Down:Connect(function() TweenService:Create(b, TweenInfo.new(0.1), { BackgroundColor3 = FreakyGui.Theme.ButtonPress, Size = UDim2.new(1,-(FreakyGui.Theme.Padding*2 + 4),0,FreakyGui.Theme.ElementHeight-2) }):Play() end) -- Slight shrink+darken
-        b.MouseButton1Up:Connect(function()
-            -- Check if mouse is still over button before tweening back to hover state
-            local mousePos = UserInputService:GetMouseLocation()
-            local absPos = b.AbsolutePosition
-            local absSize = b.AbsoluteSize
-            local isHovering = mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y
-            local targetColor = isHovering and FreakyGui.Theme.ButtonHover or FreakyGui.Theme.Primary
-            TweenService:Create(b, TweenInfo.new(0.1), { BackgroundColor3 = targetColor, Size = UDim2.new(1,-(FreakyGui.Theme.Padding*2),0,FreakyGui.Theme.ElementHeight) }):Play();
-            pcall(cb)
-        end)
-        -- b.MouseButton1Click:Connect(function() end) -- Consume click if needed, Up handles action
+        b.MouseEnter:Connect(function() TweenService:Create(b, TweenInfo.new(0.15), { BackgroundColor3 = hoverColor }):Play() end)
+        b.MouseLeave:Connect(function() TweenService:Create(b, TweenInfo.new(0.15), { BackgroundColor3 = originalColor }):Play() end)
+        b.MouseButton1Down:Connect(function() TweenService:Create(b, TweenInfo.new(0.1), { BackgroundColor3 = pressColor, Size = UDim2.new(1,-(FreakyGui.Theme.Padding*2 + 4),0,FreakyGui.Theme.ElementHeight-2) }):Play() end) -- Slight shrink+darken
+        b.MouseButton1Up:Connect(function() TweenService:Create(b, TweenInfo.new(0.1), { BackgroundColor3 = hoverColor, Size = UDim2.new(1,-(FreakyGui.Theme.Padding*2),0,FreakyGui.Theme.ElementHeight) }):Play(); pcall(cb) end)
+        b.MouseButton1Click:Connect(function() end) -- Consume click if needed, Up handles action
 
         parentObject.Elements[t]=b; return b
     end
@@ -306,23 +251,19 @@ do
 
         local sws=40; local sh=20;
         local sw=Create("TextButton",{Name="Sw", Size=UDim2.new(0,sws,0,sh), Position=UDim2.new(1,-sws-FreakyGui.Theme.Padding,0.5,-sh/2), BackgroundColor3=FreakyGui.Theme.Secondary, Text="", Parent=tf, AutoButtonColor=false}); ApplyCorner(sw); ApplyStroke(sw, FreakyGui.Theme.Outline, 0.5)
-        CollectionService:AddTag(sw, "FreakyGui_Theme_Secondary_BG") -- Base tag is secondary
+        CollectionService:AddTag(sw:FindFirstChildWhichIsA("UIStroke"), "FreakyGui_Theme_Outline")
 
         local nbs=sh-5;
         local nb=Create("Frame",{Name="Nb", Size=UDim2.new(0,nbs,0,nbs), Position=UDim2.new(0,2.5,0.5,-nbs/2), BackgroundColor3=FreakyGui.Theme.TextDisabled, BorderSizePixel=0, Parent=sw}); ApplyCorner(nb, FreakyGui.Theme.CornerRadius/2)
-        CollectionService:AddTag(nb, "FreakyGui_Theme_TextDisabled_BG") -- Base tag is disabled
+        CollectionService:AddTag(nb, "FreakyGui_Theme_TextDisabled_BG")
 
         local st=d;
         local function upd(instant)
-            local bgThemeKey = st and "Primary" or "Secondary"
-            local nubThemeKey = st and "TextActive" or "TextDisabled"
-            local tc = FreakyGui.Theme[bgThemeKey]
-            local tnc = FreakyGui.Theme[nubThemeKey]
+            local tc=st and FreakyGui.Theme.Primary or FreakyGui.Theme.Secondary;
+            local tnc=st and FreakyGui.Theme.TextActive or FreakyGui.Theme.TextDisabled;
             local tnp=st and UDim2.new(1,-nbs-2.5,0.5,-nbs/2) or UDim2.new(0,2.5,0.5,-nbs/2);
-
-            CollectionService:SetAttribute(sw, "ThemeColorKey_BG", bgThemeKey) -- Store state for refresh
-            CollectionService:SetAttribute(nb, "ThemeColorKey_BG", nubThemeKey) -- Store state for refresh
-
+            CollectionService:SetAttribute(sw, "ThemeColorKey_BG", st and "Primary" or "Secondary")
+            CollectionService:SetAttribute(nb, "ThemeColorKey_BG", st and "TextActive" or "TextDisabled")
             if instant then
                  sw.BackgroundColor3 = tc
                  nb.BackgroundColor3 = tnc
@@ -335,7 +276,7 @@ do
         end
         sw.MouseButton1Click:Connect(function()st=not st;upd(false);pcall(cb,st)end); upd(true)
 
-        local toggleObj = { Frame=tf, Set=function(ns, instant) ns = not not ns; if st~=ns then st=ns;upd(instant or false);pcall(cb,st)end end, Get=function()return st end };
+        local toggleObj = { Frame=tf, Set=function(ns, instant)if st~=ns then st=ns;upd(instant);pcall(cb,st)end end, Get=function()return st end };
         parentObject.Elements[t]=toggleObj; return toggleObj
     end
 
@@ -369,12 +310,9 @@ do
             local tf=UDim2.new(p,0,1,0);
             local tn=UDim2.new(p,-nubSize/2,0.5,-nubSize/2);
             vl.Text=string.format("%."..decimalPlaces.."f",rv)..sfx;
-            vl.TextColor3 = FreakyGui.Theme.TextDisabled -- Always use disabled color for value label
             if cv == rv and not fromDrag then return end -- No visual update needed if value same and not dragging
             cv=rv
-            if fromDrag then
-                sfll.Size=tf; sn.Position=tn;
-            else
+            if fromDrag then sfll.Size=tf; sn.Position=tn; else
                 local ti=TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out);
                 TweenService:Create(sfll,ti,{Size=tf}):Play();
                 TweenService:Create(sn,ti,{Position=tn}):Play();
@@ -389,23 +327,14 @@ do
         local function finalizeValue() -- Call callback only when drag ends or clicked
             pcall(cb,cv)
         end
-        local function onMouseMove()
-             if isDragging then
-                 local mousePos=UserInputService:GetMouseLocation();
-                 updateFromInputPos(mousePos)
-            else
-                -- Safety disconnect if somehow still connected without dragging
-                if mouseMoveConn then mouseMoveConn:Disconnect(); mouseMoveConn=nil end
-            end
-        end
+        local function onMouseMove() if isDragging then local mousePos=UserInputService:GetMouseLocation(); updateFromInputPos(mousePos) else if mouseMoveConn then mouseMoveConn:Disconnect(); mouseMoveConn=nil end end end
         local function onMouseRelease(input)
             if isDragging and (input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch) then
                 isDragging=false;
                 if mouseMoveConn then mouseMoveConn:Disconnect(); mouseMoveConn=nil end;
                 if mouseReleaseConn then mouseReleaseConn:Disconnect(); mouseReleaseConn=nil end
                 ReleaseInput(parentObject.Window, sn)
-                -- Revert nub style using current theme colors
-                TweenService:Create(sn, TweenInfo.new(0.1), {BackgroundColor3=FreakyGui.Theme.TextActive, Size=UDim2.new(0,nubSize,0,nubSize)}):Play()
+                TweenService:Create(sn, TweenInfo.new(0.1), {BackgroundColor3=FreakyGui.Theme.TextActive, Size=UDim2.new(0,nubSize,0,nubSize)}):Play() -- Revert nub style
                 finalizeValue()
             end
         end
@@ -415,39 +344,37 @@ do
 
         da.InputBegan:Connect(function(input)
             if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
-                if not CaptureInput(parentObject.Window, sn) then return end -- Attempt to capture input
                 isDragging=true;
-
+                CaptureInput(parentObject.Window, sn) -- Capture input for this slider nub
                 updateFromInputPos(input.Position); -- Initial position set
                 uv(cv, true) -- Ensure visual matches exactly
-                -- Highlight nub using current theme colors
-                TweenService:Create(sn, TweenInfo.new(0.1), {BackgroundColor3=FreakyGui.Theme.SliderNubDragging, Size=UDim2.new(0,nubSize*1.1,0,nubSize*1.1)}):Play()
+                TweenService:Create(sn, TweenInfo.new(0.1), {BackgroundColor3=FreakyGui.Theme.SliderNubDragging, Size=UDim2.new(0,nubSize*1.1,0,nubSize*1.1)}):Play() -- Highlight nub
 
                 if mouseMoveConn then mouseMoveConn:Disconnect() end;
                 if mouseReleaseConn then mouseReleaseConn:Disconnect() end;
                 mouseMoveConn=RunService.RenderStepped:Connect(onMouseMove);
                 mouseReleaseConn=UserInputService.InputEnded:Connect(onMouseRelease)
 
-                -- If it wasn't a drag (just a click), finalize immediately
+                -- Also finalize value immediately on click (if not dragging)
                 task.delay(0, function() if not isDragging then finalizeValue() end end)
             end
         end)
 
         uv(cv, false); -- Initial setup
-        local sliderObj={Frame=sf,Set=function(nv, instant) local clamped = math.clamp(nv, min, max); local rv = rti(clamped); if cv~=rv then uv(rv, instant or false); pcall(cb,rv) end end,Get=function()return cv end};
+        local sliderObj={Frame=sf,Set=function(nv, instant) local rv = rti(math.clamp(nv, min, max)); if cv~=rv then uv(rv, false); pcall(cb,rv) end end,Get=function()return cv end};
         parentObject.Elements[t]=sliderObj;return sliderObj
     end
 
     --[[ Label ]]
     function ElementFunctions:AddLabel(parentObject, parentContainer, parentLayout, opts)
         opts = opts or {}; local t = opts.Text or "Label"
-        local lblFrame = _CreateBaseFrame(parentContainer, parentLayout, opts, UDim2.new(1,-(FreakyGui.Theme.Padding*2),0,0), "_LblFrm")
-        lblFrame.AutomaticSize = Enum.AutomaticSize.Y
-        lblFrame.BackgroundTransparency = 1
-        local textLabel = _CreateBaseLabel(lblFrame, {Text=t, Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y, Align=opts.Align, VAlign=opts.VAlign, TextSize=opts.TextSize or FreakyGui.Theme.FontSize}, "Text", "")
-        textLabel.TextWrapped = opts.Wrap or true -- Allow labels to wrap by default
-        ApplyTooltip(lblFrame, opts.Tooltip)
-        local labelObj = { Frame=lblFrame, Label=textLabel, Set=function(newText) textLabel.Text = newText end, Get=function() return textLabel.Text end };
+        local lbl = _CreateBaseFrame(parentContainer, parentLayout, opts, UDim2.new(1,-(FreakyGui.Theme.Padding*2),0,0), "_LblFrm")
+        lbl.AutomaticSize = Enum.AutomaticSize.Y
+        lbl.BackgroundTransparency = 1
+        local textLabel = _CreateBaseLabel(lbl, {Text=t, Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y, Align=opts.Align, VAlign=opts.VAlign}, "Text", "")
+        textLabel.TextWrapped = true -- Allow labels to wrap
+        ApplyTooltip(lbl, opts.Tooltip)
+        local labelObj = { Frame=lbl, Label=textLabel, Set=function(newText) textLabel.Text = newText end, Get=function() return textLabel.Text end };
         parentObject.Elements[t]=labelObj; return labelObj
     end
 
@@ -471,7 +398,7 @@ do
         local color = opts.Color or FreakyGui.Theme.Outline;
         local padding = opts.Padding or FreakyGui.Theme.SeparatorPadding
         local textSize = opts.TextSize or FreakyGui.Theme.FontSize - 2 -- Slightly smaller text
-        local textColorKey = opts.TextColorKey or "TextDisabled" -- Allow specifying theme key
+        local textColor = opts.TextColor or FreakyGui.Theme.TextDisabled
 
         local sf = _CreateBaseFrame(parentContainer, parentLayout, opts, UDim2.new(1,-(FreakyGui.Theme.Padding*2),0, math.max(thickness, textSize) + padding*2), "_SepTxtFrm")
         sf.BackgroundTransparency=1
@@ -492,8 +419,8 @@ do
             local label = _CreateBaseLabel(sf, {
                 Name = "SeparatorLabel", Text = t, TextSize = textSize, Align = Enum.TextXAlignment.Center, VAlign = Enum.TextYAlignment.Center,
                 Size = UDim2.new(0, textWidth, 1, 0), Position = UDim2.new(0.5, -textWidth/2, 0, 0),
-            }, textColorKey, "") -- Use specified or default theme key
-            -- Explicit tag already added by _CreateBaseLabel
+            }, "TextDisabled", "") -- Use TextDisabled by default
+            CollectionService:AddTag(label, "FreakyGui_Theme_TextDisabled") -- Explicit tag
         end
 
         parentObject.Elements["SeparatorText_"..sf.LayoutOrder]=sf; return sf
@@ -501,88 +428,52 @@ do
 
      --[[ Textbox ]]
     function ElementFunctions:AddTextbox(parentObject, parentContainer, parentLayout, opts)
-        opts=opts or{}; local t=opts.Text or"Input"; local placeholder=opts.Placeholder or"Enter text..."; local clear=opts.ClearOnFocus == nil and true or opts.ClearOnFocus; local cb=opts.Callback or function(txt)print(t.." text:"..txt)end;
+        opts=opts or{}; local t=opts.Text or"Input"; local placeholder=opts.Placeholder or"Enter text..."; local clear=opts.ClearOnFocus or true; local cb=opts.Callback or function(txt)print(t.." text:"..txt)end;
         local fh = FreakyGui.Theme.TextboxHeight + FreakyGui.Theme.FontSize + FreakyGui.Theme.Padding * 0.5
         local tf = _CreateBaseFrame(parentContainer, parentLayout, opts, UDim2.new(1,-(FreakyGui.Theme.Padding*2),0,fh), "_TxtFrm")
         ApplyTooltip(tf, opts.Tooltip)
 
-        local tl = _CreateBaseLabel(tf, {Text=t, Size=UDim2.new(1,0,0,FreakyGui.Theme.FontSize), Position=UDim2.new(0,FreakyGui.Theme.Padding,0,0) }, "Text", "_Lbl")
-        local tb=Create("TextBox",{Name="Input", Size=UDim2.new(1,-FreakyGui.Theme.Padding*2,0,FreakyGui.Theme.TextboxHeight), Position=UDim2.new(0,FreakyGui.Theme.Padding,0,FreakyGui.Theme.FontSize + FreakyGui.Theme.Padding*0.2), BackgroundColor3=FreakyGui.Theme.Secondary, BorderSizePixel=0, Font=FreakyGui.Theme.Font, Text=placeholder, TextColor3=FreakyGui.Theme.TextDisabled, TextSize=FreakyGui.Theme.FontSize, ClearTextOnFocus=false, -- IMPORTANT: Disable built-in clear, handle manually
-        TextXAlignment=Enum.TextXAlignment.Left, Parent=tf})
+        local tl = _CreateBaseLabel(tf, { Text=t, Size=UDim2.new(1,0,0,FreakyGui.Theme.FontSize), Position=UDim2.new(0,FreakyGui.Theme.Padding,0,0) }, "Text", "_Lbl")
+        local tb=Create("TextBox",{Name="Input", Size=UDim2.new(1,-FreakyGui.Theme.Padding*2,0,FreakyGui.Theme.TextboxHeight), Position=UDim2.new(0,FreakyGui.Theme.Padding,0,FreakyGui.Theme.FontSize + FreakyGui.Theme.Padding*0.2), BackgroundColor3=FreakyGui.Theme.Secondary, BorderSizePixel=0, Font=FreakyGui.Theme.Font, Text=placeholder, TextColor3=FreakyGui.Theme.TextDisabled, TextSize=FreakyGui.Theme.FontSize, ClearTextOnFocus=clear, TextXAlignment=Enum.TextXAlignment.Left, Parent=tf})
         ApplyCorner(tb); local stroke = ApplyStroke(tb)
         CollectionService:AddTag(tb, "FreakyGui_Theme_Secondary_BG")
         CollectionService:AddTag(tb, "FreakyGui_Theme_TextDisabled") -- Initial text color tag
 
-        local hasFocused = false -- Track if focus occurred since text was placeholder
+        local hasFocused = false
         tb.Focused:Connect(function()
-            if not CaptureInput(parentObject.Window, tb) then return end -- Attempt to capture input
-
-            local currentText = tb.Text
-            local isPlaceholder = (currentText == placeholder and not hasFocused)
-
-            if isPlaceholder and clear then
-                tb.Text = ""
-                CollectionService:SetAttribute(tb, "ThemeColorKey_Text", "Text")
+            if not hasFocused and tb.Text == placeholder then
+                -- Don't clear if ClearTextOnFocus is false, just change color
+                if clear then tb.Text = "" end
                 tb.TextColor3 = FreakyGui.Theme.Text
-            elseif isPlaceholder and not clear then
-                -- Don't clear text, just change color if it was placeholder
-                 CollectionService:SetAttribute(tb, "ThemeColorKey_Text", "Text")
+                CollectionService:AddTag(tb, "FreakyGui_Theme_Text")
+                CollectionService:RemoveTag(tb, "FreakyGui_Theme_TextDisabled")
+                hasFocused = true
+            elseif tb.Text ~= placeholder then -- Already has text or was cleared
                  tb.TextColor3 = FreakyGui.Theme.Text
-            else -- Already has user text
-                 CollectionService:SetAttribute(tb, "ThemeColorKey_Text", "Text")
-                 tb.TextColor3 = FreakyGui.Theme.Text
+                 CollectionService:AddTag(tb, "FreakyGui_Theme_Text")
+                 CollectionService:RemoveTag(tb, "FreakyGui_Theme_TextDisabled")
             end
-            hasFocused = true -- Mark as focused at least once
-
-            -- Update stroke
-            CollectionService:SetAttribute(stroke, "ThemeColorKey", "Primary") -- Focused stroke uses Primary
             stroke.Color = FreakyGui.Theme.Primary; stroke.Thickness = 1.5
+            CollectionService:AddTag(stroke, "FreakyGui_Theme_Primary") -- Focused stroke uses Primary
+            CollectionService:RemoveTag(stroke, "FreakyGui_Theme_Outline")
+            CaptureInput(parentObject.Window, tb)
         end)
-
         tb.FocusLost:Connect(function(enterPressed)
-             local currentText = tb.Text
-             if currentText == "" then
+             if tb.Text == "" then
                  tb.Text = placeholder
-                 CollectionService:SetAttribute(tb, "ThemeColorKey_Text", "TextDisabled") -- Set attribute for refresh
                  tb.TextColor3 = FreakyGui.Theme.TextDisabled
-                 hasFocused = false -- Reset focus tracking if empty
-             else
-                 -- Ensure text color remains 'Text' even if focus lost with text
-                 CollectionService:SetAttribute(tb, "ThemeColorKey_Text", "Text")
-                 tb.TextColor3 = FreakyGui.Theme.Text
+                 CollectionService:AddTag(tb, "FreakyGui_Theme_TextDisabled")
+                 CollectionService:RemoveTag(tb, "FreakyGui_Theme_Text")
+                 hasFocused = false
              end
-
-             -- Update stroke back to default
-             CollectionService:SetAttribute(stroke, "ThemeColorKey", "Outline")
              stroke.Color = FreakyGui.Theme.Outline; stroke.Thickness = 1
-
-             if enterPressed then pcall(cb, currentText) end -- Use currentText before it's potentially replaced by placeholder
+             CollectionService:AddTag(stroke, "FreakyGui_Theme_Outline")
+             CollectionService:RemoveTag(stroke, "FreakyGui_Theme_Primary")
+             if enterPressed then pcall(cb, tb.Text) end
              ReleaseInput(parentObject.Window, tb)
         end)
 
-        local textboxObj = {
-            Frame=tf, Textbox=tb,
-            Set=function(newText)
-                newText = tostring(newText)
-                tb.Text = newText
-                if newText ~= "" and newText ~= placeholder then
-                    tb.TextColor3 = FreakyGui.Theme.Text
-                    CollectionService:SetAttribute(tb, "ThemeColorKey_Text", "Text")
-                    hasFocused = true
-                else -- Empty or effectively placeholder
-                    tb.Text = placeholder -- Ensure placeholder if empty
-                    tb.TextColor3 = FreakyGui.Theme.TextDisabled
-                    CollectionService:SetAttribute(tb, "ThemeColorKey_Text", "TextDisabled")
-                    hasFocused = false
-                end
-                -- If textbox currently focused, keep focused style even after Set
-                if UserInputService:GetFocusedTextBox() == tb then
-                     CollectionService:SetAttribute(stroke, "ThemeColorKey", "Primary")
-                     stroke.Color = FreakyGui.Theme.Primary; stroke.Thickness = 1.5
-                end
-            end,
-            Get=function() return (tb.Text ~= placeholder and tb.Text) or "" end
-        }
+        local textboxObj = {Frame=tf, Textbox=tb, Set=function(newText) tb.Text=newText; if newText ~= "" and newText ~= placeholder then tb.TextColor3 = FreakyGui.Theme.Text; CollectionService:AddTag(tb, "FreakyGui_Theme_Text"); CollectionService:RemoveTag(tb, "FreakyGui_Theme_TextDisabled"); hasFocused = true else tb.TextColor3 = FreakyGui.Theme.TextDisabled; CollectionService:AddTag(tb, "FreakyGui_Theme_TextDisabled"); CollectionService:RemoveTag(tb, "FreakyGui_Theme_Text"); hasFocused = false end end, Get=function() return (tb.Text ~= placeholder and tb.Text) or "" end}
         parentObject.Elements[t]=textboxObj; return textboxObj
     end
 
@@ -592,7 +483,7 @@ do
         local order = GetNextLayoutOrder(parentLayout)
 
         local boxWidthScale = (side == "Left" or side == "Right") and 0.5 or 1
-        local boxWidthOffset = (side == "Left" or side == "Right") and -(FreakyGui.Theme.Padding * 1.5) or -(FreakyGui.Theme.Padding * 2) -- Adjust padding between split boxes
+        local boxWidthOffset = (side == "Left" or side == "Right") and -(FreakyGui.Theme.Padding * 1.5) or -(FreakyGui.Theme.Padding * 2)
 
         local groupBoxFrame = Create("Frame", {
             Name = (title or "GroupBox") .. "_Frame",
@@ -602,7 +493,7 @@ do
             BorderSizePixel = 0,
             LayoutOrder = order,
             Parent = parentContainer,
-            ClipsDescendants = false, -- Usually false for groupboxes unless explicitly needed
+            ClipsDescendants = true,
         })
         ApplyCorner(groupBoxFrame); ApplyStroke(groupBoxFrame)
         CollectionService:AddTag(groupBoxFrame, "FreakyGui_Theme_Secondary_BG")
@@ -611,14 +502,16 @@ do
         local verticalLayout = Create("UIListLayout", {
             Parent = groupBoxFrame, SortOrder = Enum.SortOrder.LayoutOrder,
             Padding = UDim.new(0, FreakyGui.Theme.GroupBoxPadding), FillDirection = Enum.FillDirection.Vertical,
-            HorizontalAlignment = opts.HorizontalAlign or Enum.HorizontalAlignment.Center, -- Default to center align content? Or Left? Let's stick to Left for now.
-            VerticalAlignment = opts.VerticalAlign or Enum.VerticalAlignment.Top,
+            HorizontalAlignment = Enum.HorizontalAlignment.Left, -- Change to Center or Right if needed
         })
-         local paddingElement = Create("UIPadding", {
+        local paddingElement = Create("UIPadding", {
              Parent = groupBoxFrame,
              PaddingTop = UDim.new(0, FreakyGui.Theme.GroupBoxPadding), PaddingBottom = UDim.new(0, FreakyGui.Theme.GroupBoxPadding),
              PaddingLeft = UDim.new(0, FreakyGui.Theme.GroupBoxPadding), PaddingRight = UDim.new(0, FreakyGui.Theme.GroupBoxPadding),
          })
+
+        local contentContainer = groupBoxFrame
+        local contentLayout = verticalLayout
 
         if title then
             local titleFrame = Create("Frame", {
@@ -626,30 +519,21 @@ do
                 BackgroundColor3 = FreakyGui.Theme.GroupBoxHeader, BorderSizePixel = 0,
                 LayoutOrder = 0, Parent = groupBoxFrame, ClipsDescendants = true,
             })
-            -- Apply corner only to top corners visually
-            ApplyCorner(titleFrame, FreakyGui.Theme.CornerRadius)
-            local bottomFix = Create("Frame", { Name="BottomFix", Size=UDim2.new(1,0,0,FreakyGui.Theme.CornerRadius/2), Position=UDim2.new(0,0,1,-FreakyGui.Theme.CornerRadius/2), BackgroundColor3=FreakyGui.Theme.GroupBoxHeader, BorderSizePixel=0, ZIndex=titleFrame.ZIndex-1, Parent=titleFrame})
+            ApplyCorner(titleFrame, FreakyGui.Theme.CornerRadius) -- Keep corner on title too
             CollectionService:AddTag(titleFrame, "FreakyGui_Theme_GroupBoxHeader_BG")
-            CollectionService:AddTag(bottomFix, "FreakyGui_Theme_GroupBoxHeader_BG")
 
             _CreateBaseLabel(titleFrame, { Name = "TitleLabel", Text = title, Size = UDim2.new(1, -FreakyGui.Theme.Padding*2, 1, 0), Position = UDim2.new(0, FreakyGui.Theme.Padding, 0, 0), TextSize=FreakyGui.Theme.FontSize-1 }, "Text", "") -- Slightly smaller title text
 
-            -- Adjust main padding to account for title bar
             paddingElement.PaddingTop = UDim.new(0, FreakyGui.Theme.GroupBoxTitleHeight + FreakyGui.Theme.GroupBoxPadding)
         end
 
-        -- The content container IS the groupbox frame itself, layout manages children
         local groupBox = {
-            Name = title or "GroupBox_"..order, Frame = groupBoxFrame, ContentContainer = groupBoxFrame,
-            Layout = verticalLayout, Elements = {},
-            Window = parentObject.Window -- *** IMPORTANT: Pass window reference down ***
+            Name = title or "GroupBox_"..order, Frame = groupBoxFrame, ContentContainer = contentContainer,
+            Layout = contentLayout, Elements = {}, Window = parentObject.Window -- Pass window reference down
         }
         -- Add element functions to this group box instance
         for funcName, func in pairs(ElementFunctions) do
-            -- Use a closure to capture the correct 'groupBox' instance
-            groupBox[funcName] = function(passedOpts)
-                return func(groupBox, groupBox.ContentContainer, groupBox.Layout, passedOpts)
-            end
+            groupBox[funcName] = function(passedOpts) return func(groupBox, groupBox.ContentContainer, groupBox.Layout, passedOpts) end
         end
 
         parentObject.Elements[groupBox.Name] = groupBox;
@@ -660,76 +544,59 @@ do
     function ElementFunctions:AddKeybindPicker(parentObject, parentContainer, parentLayout, opts)
         opts=opts or{}; local t=opts.Text or"Keybind"; local def=opts.Default or Enum.KeyCode.RightShift; local cb=opts.Callback or function(kc)print(t.." key:"..tostring(kc))end;
         local window = parentObject.Window
-        if not window then warn("FreakyGui Error: KeybindPicker needs a window reference passed down from its parent (Tab/GroupBox)!"); return end
+        if not window then warn("KeybindPicker needs a window reference!") return end
 
         local kf = _CreateBaseFrame(parentContainer, parentLayout, opts, nil, "_KeyFrm")
         ApplyTooltip(kf, opts.Tooltip)
         local kl = _CreateBaseLabel(kf, {Text=t, Size=UDim2.new(0.5,-FreakyGui.Theme.Padding,1,0), Position=UDim2.new(0,FreakyGui.Theme.Padding,0,0)}, "Text", "_Lbl")
-        local kb = Create("TextButton",{Name="SetBtn", Size=UDim2.new(0.5,-FreakyGui.Theme.Padding,1,0), Position=UDim2.new(0.5,FreakyGui.Theme.Padding,0,0), BackgroundColor3=FreakyGui.Theme.Secondary, TextColor3=FreakyGui.Theme.Text, Font=FreakyGui.Theme.Font, TextSize=FreakyGui.Theme.FontSize, Text="...", Parent=kf, AutoButtonColor=false}) -- Start with ...
+        local kb = Create("TextButton",{Name="SetBtn", Size=UDim2.new(0.5,-FreakyGui.Theme.Padding,1,0), Position=UDim2.new(0.5,FreakyGui.Theme.Padding,0,0), BackgroundColor3=FreakyGui.Theme.Secondary, TextColor3=FreakyGui.Theme.Text, Font=FreakyGui.Theme.Font, TextSize=FreakyGui.Theme.FontSize, Text="Set: "..tostring(def):gsub("KeyCode.",""), Parent=kf, AutoButtonColor=false})
         ApplyCorner(kb); local stroke = ApplyStroke(kb)
         CollectionService:AddTag(kb, "FreakyGui_Theme_Secondary_BG"); CollectionService:AddTag(kb, "FreakyGui_Theme_Text")
 
         local currentKey = def; local isListening = false; local inputConn = nil
 
-        local function updateButtonText()
-             kb.Text = isListening and "Press key..." or "Set: "..tostring(currentKey):gsub("KeyCode.","")
-        end
-
-        local function stopListening(fireCallback, newKey)
-            if not isListening then return end
+        local function stopListening()
             if inputConn then inputConn:Disconnect(); inputConn = nil end
             isListening = false
-
-            if newKey then currentKey = newKey end -- Update key if one was provided
-
-            updateButtonText()
-            CollectionService:SetAttribute(kb, "ThemeColorKey_BG", "Secondary") -- State attribute
+            kb.Text = "Set: "..tostring(currentKey):gsub("KeyCode.","")
             kb.BackgroundColor3 = FreakyGui.Theme.Secondary
-            CollectionService:SetAttribute(stroke, "ThemeColorKey", "Outline") -- State attribute
+            CollectionService:SetAttribute(kb, "ThemeColorKey_BG", "Secondary")
             stroke.Color = FreakyGui.Theme.Outline; stroke.Thickness = 1
+            CollectionService:SetAttribute(stroke, "ThemeColorKey", "Outline")
             ReleaseInput(window, kb)
-
-            if fireCallback and newKey then pcall(cb, currentKey) end
         end
 
         kb.MouseButton1Click:Connect(function()
-            if isListening then
-                stopListening(false) -- Cancel listening if clicked again
+            if isListening then stopListening()
             else
-                if not CaptureInput(window, kb) then return end -- Try to capture input
+                if FreakyGui.InputCaptureConnections[window.ScreenGui] then return end -- Don't start if something else has capture
                 isListening = true
-                updateButtonText()
-                CollectionService:SetAttribute(kb, "ThemeColorKey_BG", "Primary") -- State attribute
+                kb.Text = "Press key..."
                 kb.BackgroundColor3 = FreakyGui.Theme.Primary
-                CollectionService:SetAttribute(stroke, "ThemeColorKey", "TextActive") -- State attribute
+                CollectionService:SetAttribute(kb, "ThemeColorKey_BG", "Primary")
                 stroke.Color = FreakyGui.Theme.TextActive; stroke.Thickness = 1.5
+                CollectionService:SetAttribute(stroke, "ThemeColorKey", "TextActive")
+                CaptureInput(window, kb)
 
                 inputConn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
                     if not gameProcessed and isListening then
                         if input.UserInputType == Enum.UserInputType.Keyboard then
                             local newKey = input.KeyCode
-                            if newKey ~= Enum.KeyCode.Unknown and newKey ~= Enum.KeyCode.NoKey then
-                                if newKey == Enum.KeyCode.Escape then
-                                    stopListening(false) -- Cancel on Escape
-                                else
-                                    stopListening(true, newKey) -- Stop and set new key
-                                end
+                            if newKey ~= Enum.KeyCode.Unknown and newKey ~= Enum.KeyCode.NoKey and newKey ~= Enum.KeyCode.Escape then -- Escape cancels
+                                currentKey = newKey
+                                pcall(cb, currentKey)
+                                stopListening()
+                            elseif newKey == Enum.KeyCode.Escape then
+                                stopListening() -- Cancel without changing
                             end
                         elseif input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 then
-                            -- Check if the click was OUTSIDE the button
-                            local mousePos = UserInputService:GetMouseLocation()
-                            local absPos, absSize = kb.AbsolutePosition, kb.AbsoluteSize
-                            if not (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y) then
-                                 stopListening(false) -- Click outside cancels
-                            end
+                            stopListening() -- Click off cancels
                         end
                     end
                 end)
             end
         end)
-        updateButtonText() -- Set initial text
-
-        local keybindObj = { Frame=kf, Button=kb, Get=function() return currentKey end, Set=function(newKey) currentKey = newKey; updateButtonText(); if not isListening then pcall(cb, currentKey) end end }
+        local keybindObj = { Frame=kf, Button=kb, Get=function() return currentKey end, Set=function(newKey) currentKey = newKey; kb.Text = "Set: "..tostring(currentKey):gsub("KeyCode.",""); pcall(cb, currentKey) end }
         parentObject.Elements[t]=keybindObj; return keybindObj
     end
 
@@ -744,42 +611,37 @@ do
         local topFrame = Create("Frame", {Name="Top", Size=UDim2.new(1,0,0,FreakyGui.Theme.ElementHeight/1.5), BackgroundTransparency=1, Parent=cf})
         local cl = _CreateBaseLabel(topFrame, {Text=t, Size=UDim2.new(1,-FreakyGui.Theme.Padding*2 - 20,1,0), Position=UDim2.new(0,FreakyGui.Theme.Padding,0,0)}, "Text", "_Lbl")
         local previewSize = FreakyGui.Theme.ElementHeight/1.5 - 4
-        local cp = Create("Frame",{Name="Preview", Size=UDim2.new(0,previewSize,0,previewSize), Position=UDim2.new(1,-previewSize-FreakyGui.Theme.Padding,0.5,-previewSize/2), BackgroundColor3=defaultColor, BorderSizePixel=0, Parent=topFrame})
-        ApplyCorner(cp, 3); ApplyStroke(cp) -- Apply stroke for border
+        local cp = Create("Frame",{Name="Preview", Size=UDim2.new(0,previewSize,0,previewSize), Position=UDim2.new(1,-previewSize-FreakyGui.Theme.Padding,0.5,-previewSize/2), BackgroundColor3=defaultColor, BorderSizePixel=1, BorderColor3=FreakyGui.Theme.Outline, Parent=topFrame})
+        ApplyCorner(cp, 3); ApplyStroke(cp)
+        CollectionService:AddTag(cp:FindFirstChildWhichIsA("UIStroke"), "FreakyGui_Theme_Outline")
 
         local sliderFrame = Create("Frame",{Name="Sliders", Size=UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency=1, Parent=cf})
-        local sliderLayout = Create("UIListLayout",{Parent=sliderFrame, Padding=UDim.new(0,2), SortOrder=Enum.SortOrder.LayoutOrder})
+        local sliderLayout = Create("UIListLayout", {Parent=sliderFrame, Padding=UDim.new(0,2), SortOrder=Enum.SortOrder.LayoutOrder})
 
-        local r, g, b = defaultColor.R*255, defaultColor.G*255, defaultColor.B*255 -- Store as 0-255 for sliders
+        local r, g, b = defaultColor.R, defaultColor.G, defaultColor.B -- Store as 0-1
         local sliders = {}
         local currentColor = defaultColor
 
-        -- *** FIX: Create a temporary object with the correct Window reference for the sliders ***
+        -- Need to pass the correct parentObject (which has the Window ref)
         local colorPickerInternalObject = { Elements = {}, Window = parentObject.Window }
-        if not parentObject.Window then warn("FreakyGui Warning: Parent object for ColorPickerElement '"..t.."' doesn't have a Window reference!") end
 
-        local function updateColor(sourceSliderVal) -- Callback receives the new value
-            local rVal = sliders.R and sliders.R:Get() or r
-            local gVal = sliders.G and sliders.G:Get() or g
-            local bVal = sliders.B and sliders.B:Get() or b
+        local function updateColor(sourceSlider)
+            local rVal = sliders.R:Get()
+            local gVal = sliders.G:Get()
+            local bVal = sliders.B:Get()
             currentColor = Color3.fromRGB(rVal, gVal, bVal)
-            r, g, b = rVal, gVal, bVal -- Update 0-255 values
+            r, g, b = currentColor.R, currentColor.G, currentColor.B -- Update 0-1 values
             cp.BackgroundColor3 = currentColor
             pcall(cb, currentColor)
         end
 
-        -- Use ElementFunctions directly, passing the corrected internal object
-        sliders.R = ElementFunctions.AddSlider(colorPickerInternalObject, sliderFrame, sliderLayout, {Text="R", Min=0, Max=255, Increment=1, Default=r, Callback=updateColor})
-        sliders.G = ElementFunctions.AddSlider(colorPickerInternalObject, sliderFrame, sliderLayout, {Text="G", Min=0, Max=255, Increment=1, Default=g, Callback=updateColor})
-        sliders.B = ElementFunctions.AddSlider(colorPickerInternalObject, sliderFrame, sliderLayout, {Text="B", Min=0, Max=255, Increment=1, Default=b, Callback=updateColor})
+        sliders.R = self:AddSlider(colorPickerInternalObject, sliderFrame, sliderLayout, {Text="R", Min=0, Max=255, Increment=1, Default=r*255, Callback=updateColor})
+        sliders.G = self:AddSlider(colorPickerInternalObject, sliderFrame, sliderLayout, {Text="G", Min=0, Max=255, Increment=1, Default=g*255, Callback=updateColor})
+        sliders.B = self:AddSlider(colorPickerInternalObject, sliderFrame, sliderLayout, {Text="B", Min=0, Max=255, Increment=1, Default=b*255, Callback=updateColor})
 
-        local colorPickerObj = { Frame=cf, Preview=cp, Get=function() return currentColor end, Set=function(newColor, instant)
-                newColor = newColor or Color3.new(1,1,1)
-                currentColor = newColor; cp.BackgroundColor3 = currentColor;
-                r,g,b = math.floor(newColor.R * 255 + 0.5), math.floor(newColor.G * 255 + 0.5), math.floor(newColor.B * 255 + 0.5)
-                if sliders.R then sliders.R:Set(r, instant) end
-                if sliders.G then sliders.G:Set(g, instant) end
-                if sliders.B then sliders.B:Set(b, instant) end
+        local colorPickerObj = { Frame=cf, Preview=cp, Get=function() return currentColor end, Set=function(newColor)
+                currentColor = newColor; cp.BackgroundColor3 = currentColor; r,g,b = newColor.R, newColor.G, newColor.B
+                sliders.R:Set(r * 255, true); sliders.G:Set(g * 255, true); sliders.B:Set(b * 255, true)
             end
         }
         parentObject.Elements[t] = colorPickerObj; return colorPickerObj
@@ -788,8 +650,6 @@ do
     --[[ Dropdown ]]
     function ElementFunctions:AddDropdown(parentObject, parentContainer, parentLayout, opts)
         opts=opts or{}; local t=opts.Text or"Dropdown"; local items=opts.Items or{}; local def=opts.Default or items[1]; local cb=opts.Callback or function(sel)print(t.." selected:"..tostring(sel))end;
-        local window = parentObject.Window
-        if not window then warn("FreakyGui Error: Dropdown needs a window reference passed down from its parent (Tab/GroupBox)!"); return end
 
         local df = _CreateBaseFrame(parentContainer, parentLayout, opts, nil, "_DDFrm")
         df.ClipsDescendants = false -- Allow list to overflow
@@ -801,66 +661,41 @@ do
         CollectionService:AddTag(button, "FreakyGui_Theme_Secondary_BG"); CollectionService:AddTag(button, "FreakyGui_Theme_Text")
         local arrow = _CreateBaseLabel(button, {Name="Arrow", Text="▼", Size=UDim2.new(0,20,1,0), Position=UDim2.new(1,-20,0,0), Align=Enum.TextXAlignment.Center}, "Text", "")
 
-        local listFrame = Create("ScrollingFrame",{Name="List", Size=UDim2.new(1,0,0,0), Position=UDim2.new(0,0,1,FreakyGui.Theme.Padding/2), BackgroundColor3=FreakyGui.Theme.DropdownBackground, BorderSizePixel=0, Visible=false, ClipsDescendants=true, CanvasSize=UDim2.new(0,0,0,0), ScrollBarThickness=4, ScrollBarImageColor3=FreakyGui.Theme.Primary, ZIndex=df.ZIndex + 100, Parent=df}) -- High ZIndex
+        local listFrame = Create("ScrollingFrame",{Name="List", Size=UDim2.new(1,0,0,0), Position=UDim2.new(0,0,1,FreakyGui.Theme.Padding/2), BackgroundColor3=FreakyGui.Theme.DropdownBackground, BorderSizePixel=1, BorderColor3=FreakyGui.Theme.Outline, Visible=false, ClipsDescendants=true, CanvasSize=UDim2.new(0,0,0,0), ScrollBarThickness=4, ScrollBarImageColor3=FreakyGui.Theme.Primary, ZIndex=df.ZIndex + 100, Parent=df}) -- High ZIndex
         ApplyCorner(listFrame); ApplyStroke(listFrame)
-        CollectionService:AddTag(listFrame, "FreakyGui_Theme_DropdownBackground_BG"); -- Stroke tagged by ApplyStroke
+        CollectionService:AddTag(listFrame, "FreakyGui_Theme_DropdownBackground_BG"); CollectionService:AddTag(listFrame:FindFirstChildWhichIsA("UIStroke"), "FreakyGui_Theme_Outline")
         CollectionService:AddTag(listFrame, "FreakyGui_Theme_Primary_ScrollBar")
         local listLayout = Create("UIListLayout",{Parent=listFrame, Padding=UDim.new(0,0), SortOrder=Enum.SortOrder.LayoutOrder})
         local listPadding = Create("UIPadding", {Parent=listFrame, PaddingLeft=UDim.new(0,3), PaddingRight=UDim.new(0,3), PaddingTop=UDim.new(0,3), PaddingBottom=UDim.new(0,3)})
 
         local currentSelection = def
         local isOpen = false
-        local outsideClickListener = nil
 
         local function closeDropdown()
             if not isOpen then return end
             isOpen = false
-            if FreakyGui.ActiveDropdown and FreakyGui.ActiveDropdown.Button == button then
-                 FreakyGui.ActiveDropdown = nil
-            end
+            FreakyGui.ActiveDropdown = nil
             arrow.Text = "▼"
-            CollectionService:SetAttribute(stroke, "ThemeColorKey", "Outline")
-            stroke.Color = FreakyGui.Theme.Outline; stroke.Thickness = 1
+            stroke.Thickness = 1
             listFrame.Visible = false
-            if outsideClickListener then outsideClickListener:Disconnect(); outsideClickListener = nil end
-            ReleaseInput(window, button) -- Release input capture
+            ReleaseInput(parentObject.Window, button) -- Release input capture
         end
 
         local function openDropdown()
             if isOpen then return end
-            -- Try to capture input FIRST, only open if successful
-            if not CaptureInput(window, button) then return end
-
-            if FreakyGui.ActiveDropdown then FreakyGui.ActiveDropdown:Close() end -- Close other dropdowns first
+            if FreakyGui.ActiveDropdown then FreakyGui.ActiveDropdown:Close() end -- Close other dropdowns
 
             isOpen = true
-            FreakyGui.ActiveDropdown = { Button=button, Close=closeDropdown } -- Register this as active
+            FreakyGui.ActiveDropdown = { Button=button, Close=closeDropdown }
             arrow.Text = "▲"
-            CollectionService:SetAttribute(stroke, "ThemeColorKey", "Primary") -- Use primary for highlight
-            stroke.Color = FreakyGui.Theme.Primary; stroke.Thickness = 1.5
+            stroke.Thickness = 1.5
             listFrame.Visible = true
             listFrame.CanvasPosition = Vector2.zero -- Reset scroll
             -- Adjust height dynamically (up to max)
             local contentHeight = listLayout.AbsoluteContentSize.Y + listPadding.PaddingTop.Offset + listPadding.PaddingBottom.Offset
             local listHeight = math.min(contentHeight, FreakyGui.Theme.DropdownMaxHeight)
             listFrame.Size = UDim2.new(1, 0, 0, listHeight)
-
-            -- Handle clicking outside to close
-            outsideClickListener = UserInputService.InputBegan:Connect(function(input)
-                if not isOpen then if outsideClickListener then outsideClickListener:Disconnect(); outsideClickListener = nil end; return end -- Safety disconnect if closed elsewhere
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    local mousePos = UserInputService:GetMouseLocation()
-                    -- Check if mouse is over the button OR the list frame
-                    local buttonRect = Rect.new(button.AbsolutePosition, button.AbsolutePosition + button.AbsoluteSize)
-                    local listRect = Rect.new(listFrame.AbsolutePosition, listFrame.AbsolutePosition + listFrame.AbsoluteSize)
-                    if not buttonRect:Contains(mousePos) and not listRect:Contains(mousePos) then
-                        closeDropdown()
-                    end
-                end
-                if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Escape and isOpen then
-                     closeDropdown()
-                end
-            end)
+            CaptureInput(parentObject.Window, button) -- Capture input while open
         end
 
         button.MouseButton1Click:Connect(function()
@@ -868,67 +703,49 @@ do
         end)
 
         -- Populate List
-        local itemButtons = {}
         local function createItemButton(item)
             local itemText = tostring(item)
             local itemBtn = Create("TextButton",{Name=itemText, Size=UDim2.new(1,0,0,FreakyGui.Theme.ElementHeight-4), BackgroundTransparency=1, Text="  "..itemText, TextColor3=FreakyGui.Theme.Text, Font=FreakyGui.Theme.Font, TextSize=FreakyGui.Theme.FontSize, Parent=listFrame, AutoButtonColor=false, TextXAlignment=Enum.TextXAlignment.Left})
             CollectionService:AddTag(itemBtn, "FreakyGui_Theme_Text")
 
             itemBtn.MouseEnter:Connect(function() itemBtn.BackgroundColor3 = FreakyGui.Theme.DropdownHover end)
-            itemBtn.MouseLeave:Connect(function() itemBtn.BackgroundColor3=Color3.new(); itemBtn.BackgroundTransparency = 1 end) -- Reset BG fully
+            itemBtn.MouseLeave:Connect(function() itemBtn.BackgroundTransparency = 1; itemBtn.BackgroundColor3=Color3.new(0,0,0) end) -- Reset BG
             itemBtn.MouseButton1Click:Connect(function()
                 currentSelection = item
                 button.Text = "  "..itemText
                 closeDropdown()
                 pcall(cb, currentSelection)
             end)
-            table.insert(itemButtons, itemBtn)
             return itemBtn
         end
 
-        local function repopulateItems()
-             for _, btn in pairs(itemButtons) do btn:Destroy() end; table.clear(itemButtons)
-             for _, item in ipairs(items) do createItemButton(item) end
-             task.wait() -- Wait for layout calculation
-             listFrame.CanvasSize = UDim2.new(0,0,0,listLayout.AbsoluteContentSize.Y)
-             -- Update button text if current selection is no longer valid
-             local foundCurrent = false
-             for _, item in ipairs(items) do if item == currentSelection then foundCurrent = true; break end end
-             if not foundCurrent then
-                 currentSelection = items[1] -- Select first item
-                 button.Text = "  "..(currentSelection or "")
-             end
+        for _, item in ipairs(items) do
+            createItemButton(item)
         end
-        repopulateItems() -- Initial population
+        listFrame.CanvasSize = UDim2.new(0,0,0,listLayout.AbsoluteContentSize.Y)
 
-        local dropdownObj = {
-            Frame=df, Button=button, ListFrame=listFrame,
-            Get=function()return currentSelection end,
-            Set=function(newItem)
-                local found=false;
-                for _,i in pairs(items) do if i==newItem then found=true; break end end;
-                if found then currentSelection=newItem; button.Text="  "..tostring(newItem); pcall(cb,currentSelection)
-                else warn("FreakyGui Warning: Item not found in dropdown:", newItem) end
-            end,
-            AddItem=function(item)
-                table.insert(items, item);
-                repopulateItems()
-            end,
-            RemoveItem=function(itemToRemove)
-                local removed = false
-                for i=#items, 1, -1 do
-                    if items[i] == itemToRemove then
-                        table.remove(items, i)
-                        removed = true
-                    end
-                end
-                if removed then repopulateItems() end
-            end,
-            SetItems=function(newItemsTable)
-                 items = newItemsTable or {}
-                 repopulateItems()
+        -- Handle clicking outside to close
+        local function checkClickOutside(input)
+            if not isOpen then return end
+            local mousePos = UserInputService:GetMouseLocation()
+            -- Check if mouse is over the button OR the list frame
+            local buttonRect = Rect.new(button.AbsolutePosition, button.AbsolutePosition + button.AbsoluteSize)
+            local listRect = Rect.new(listFrame.AbsolutePosition, listFrame.AbsolutePosition + listFrame.AbsoluteSize)
+
+            if not buttonRect:Contains(mousePos) and not listRect:Contains(mousePos) then
+                closeDropdown()
             end
-        }
+        end
+        UserInputService.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                 checkClickOutside(input)
+            end
+            if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Escape and isOpen then
+                 closeDropdown()
+            end
+        end)
+
+        local dropdownObj = {Frame=df, Button=button, ListFrame=listFrame, Get=function()return currentSelection end, Set=function(newItem) local found=false; for _,i in pairs(items) do if i==newItem then found=true; break end end; if found then currentSelection=newItem; button.Text="  "..tostring(newItem); pcall(cb,currentSelection) else warn("Item not found in dropdown:", newItem) end end, AddItem=function(item) table.insert(items, item); createItemButton(item); listFrame.CanvasSize = UDim2.new(0,0,0,listLayout.AbsoluteContentSize.Y); end}
         parentObject.Elements[t]=dropdownObj; return dropdownObj
     end
 
@@ -941,8 +758,8 @@ function FreakyGui:CreateWindow(options)
     local windowTitle = options.Title or "FreakyGui Window"
 
     local screenSize = GetScreenSize()
-    local defaultWidth = math.max(350, screenSize.X / 4) -- Minimum width
-    local defaultHeight = math.max(250, screenSize.Y / 3) -- Minimum height
+    local defaultWidth = screenSize.X / 4
+    local defaultHeight = screenSize.Y / 3
     local width = options.Width or FreakyGui.Theme.WindowWidth or defaultWidth
     local height = options.Height or FreakyGui.Theme.WindowHeight or defaultHeight
     local keybindCode = options.Keybind or Enum.KeyCode.RightShift
@@ -952,10 +769,9 @@ function FreakyGui:CreateWindow(options)
     CollectionService:AddTag(windowFrame, "FreakyGui_Theme_Background_BG")
     ApplyGradient(windowFrame, "Background", "Background_Gradient_Enabled", "Background_Gradient_Color", "Background_Gradient_Transparency")
 
-    local topBar = Create("Frame", { Name="TopBar", Size=UDim2.new(1,0,0,30), BackgroundColor3=FreakyGui.Theme.Header, BorderSizePixel=0, Parent=windowFrame, ClipsDescendants=true }) -- ClipsDescendants = true for corner fix
+    local topBar = Create("Frame", { Name="TopBar", Size=UDim2.new(1,0,0,30), BackgroundColor3=FreakyGui.Theme.Header, BorderSizePixel=0, Parent=windowFrame })
     CollectionService:AddTag(topBar, "FreakyGui_Theme_Header_BG")
     ApplyGradient(topBar, "Header", "Header_Gradient_Enabled", "Header_Gradient_Color", "Header_Gradient_Transparency")
-    -- Corner fix for top bar (needed because main frame clips descendants)
     local topBarFix = Create("Frame", { Name="TopBarCornerFix", Size=UDim2.new(1,0,0,FreakyGui.Theme.CornerRadius), Position=UDim2.new(0,0,1,-FreakyGui.Theme.CornerRadius), BackgroundColor3=FreakyGui.Theme.Header, BorderSizePixel=0, ZIndex=topBar.ZIndex-1, Parent=topBar })
     CollectionService:AddTag(topBarFix, "FreakyGui_Theme_Header_BG") -- Tag fix too
 
@@ -980,7 +796,7 @@ function FreakyGui:CreateWindow(options)
             TextWrapped = true,
             Visible = false,
             ZIndex = 10000, -- Very high ZIndex
-            Parent = screenGui, -- Parent to the specific ScreenGui instance
+            Parent = screenGui,
             ClipsDescendants = true,
         })
         ApplyCorner(TooltipLabel, 3)
@@ -988,304 +804,158 @@ function FreakyGui:CreateWindow(options)
         local padding = Create("UIPadding", { Parent = TooltipLabel, PaddingLeft=UDim.new(0,4), PaddingRight=UDim.new(0,4), PaddingTop=UDim.new(0,2), PaddingBottom=UDim.new(0,2) })
         CollectionService:AddTag(TooltipLabel, "FreakyGui_Theme_TooltipBackground_BG")
         CollectionService:AddTag(TooltipLabel, "FreakyGui_Theme_TooltipText")
-        -- Stroke already tagged by ApplyStroke
+        CollectionService:AddTag(TooltipLabel:FindFirstChildWhichIsA("UIStroke"), "FreakyGui_Theme_Outline")
     end
 
-    -- Tab Area setup
+    -- Tab Area setup (Similar to before, ensure theme tags)
     local TAB_AREA_PADDING=FreakyGui.Theme.Padding; local SCROLL_BUTTON_WIDTH=20; local SETTINGS_TAB_WIDTH=80
     local tabArea = Create("Frame", { Name="TabArea", Size=UDim2.new(1,0,0,FreakyGui.Theme.TabHeight), Position=UDim2.new(0,0,0,topBar.Size.Y.Offset), BackgroundTransparency=1, Parent=windowFrame })
-    local leftScroll = Create("TextButton", { Name="LeftScroll", Size=UDim2.new(0,SCROLL_BUTTON_WIDTH,1,0), Position=UDim2.new(0,TAB_AREA_PADDING,0,0), BackgroundColor3=FreakyGui.Theme.Secondary, Text="<", Font=FreakyGui.Theme.Font, TextSize=16, TextColor3=FreakyGui.Theme.Text, Visible=false, ZIndex=tabArea.ZIndex+2, Parent=tabArea, AutoButtonColor=false }); ApplyCorner(leftScroll,3)
+    local leftScroll = Create("TextButton", { Name="LeftScroll", Size=UDim2.new(0,SCROLL_BUTTON_WIDTH,1,0), Position=UDim2.new(0,TAB_AREA_PADDING,0,0), BackgroundColor3=FreakyGui.Theme.Secondary, Text="<", Font=FreakyGui.Theme.Font, TextSize=16, TextColor3=FreakyGui.Theme.Text, Visible=false, ZIndex=2, Parent=tabArea, AutoButtonColor=false }); ApplyCorner(leftScroll,3)
     CollectionService:AddTag(leftScroll, "FreakyGui_Theme_Secondary_BG"); CollectionService:AddTag(leftScroll, "FreakyGui_Theme_Text")
-    local rightScroll = Create("TextButton", { Name="RightScroll", Size=UDim2.new(0,SCROLL_BUTTON_WIDTH,1,0), Position=UDim2.new(1,-TAB_AREA_PADDING*2-SCROLL_BUTTON_WIDTH-SETTINGS_TAB_WIDTH,0,0), BackgroundColor3=FreakyGui.Theme.Secondary, Text=">", Font=FreakyGui.Theme.Font, TextSize=16, TextColor3=FreakyGui.Theme.Text, Visible=false, ZIndex=tabArea.ZIndex+2, Parent=tabArea, AutoButtonColor=false }); ApplyCorner(rightScroll,3)
+    local rightScroll = Create("TextButton", { Name="RightScroll", Size=UDim2.new(0,SCROLL_BUTTON_WIDTH,1,0), Position=UDim2.new(1,-TAB_AREA_PADDING*2-SCROLL_BUTTON_WIDTH-SETTINGS_TAB_WIDTH,0,0), BackgroundColor3=FreakyGui.Theme.Secondary, Text=">", Font=FreakyGui.Theme.Font, TextSize=16, TextColor3=FreakyGui.Theme.Text, Visible=false, ZIndex=2, Parent=tabArea, AutoButtonColor=false }); ApplyCorner(rightScroll,3)
     CollectionService:AddTag(rightScroll, "FreakyGui_Theme_Secondary_BG"); CollectionService:AddTag(rightScroll, "FreakyGui_Theme_Text")
-    local tabBar = Create("ScrollingFrame", { Name="TabBar", Size=UDim2.new(1,-(TAB_AREA_PADDING*3+SCROLL_BUTTON_WIDTH*2+SETTINGS_TAB_WIDTH),1,0), Position=UDim2.new(0,TAB_AREA_PADDING*2+SCROLL_BUTTON_WIDTH,0,0), BackgroundTransparency=1, BorderSizePixel=0, ScrollingDirection=Enum.ScrollingDirection.X, CanvasSize=UDim2.new(0,0,0,0), ScrollBarThickness=0, ZIndex=tabArea.ZIndex+1, Parent=tabArea })
+    local tabBar = Create("ScrollingFrame", { Name="TabBar", Size=UDim2.new(1,-(TAB_AREA_PADDING*3+SCROLL_BUTTON_WIDTH*2+SETTINGS_TAB_WIDTH),1,0), Position=UDim2.new(0,TAB_AREA_PADDING*2+SCROLL_BUTTON_WIDTH,0,0), BackgroundTransparency=1, BorderSizePixel=0, ScrollingDirection=Enum.ScrollingDirection.X, CanvasSize=UDim2.new(0,0,0,0), ScrollBarThickness=0, Parent=tabArea })
     local tabLayout = Create("UIListLayout", { FillDirection=Enum.FillDirection.Horizontal, SortOrder=Enum.SortOrder.LayoutOrder, Padding=UDim.new(0,FreakyGui.Theme.Padding), VerticalAlignment=Enum.VerticalAlignment.Center, Parent=tabBar })
-    local settingsTabButton = Create("TextButton", { Name="Settings_Button", Size=UDim2.new(0,SETTINGS_TAB_WIDTH,1,0), Text="Settings", Font=FreakyGui.Theme.Font, Position=UDim2.new(1,-SETTINGS_TAB_WIDTH-TAB_AREA_PADDING,0,0), TextSize=FreakyGui.Theme.FontSize, TextColor3=FreakyGui.Theme.TextDisabled, BackgroundColor3=FreakyGui.Theme.Secondary, BorderSizePixel=0, ZIndex=tabArea.ZIndex+2, Parent=tabArea, AutoButtonColor=false }); ApplyCorner(settingsTabButton,3); ApplyStroke(settingsTabButton,nil,0) -- No stroke initially
+    local settingsTabButton = Create("TextButton", { Name="Settings_Button", Size=UDim2.new(0,SETTINGS_TAB_WIDTH,1,0), Text="Settings", Font=FreakyGui.Theme.Font, Position=UDim2.new(1,-SETTINGS_TAB_WIDTH-TAB_AREA_PADDING,0,0), TextSize=FreakyGui.Theme.FontSize, TextColor3=FreakyGui.Theme.TextDisabled, BackgroundColor3=FreakyGui.Theme.Secondary, BorderSizePixel=0, ZIndex=2, Parent=tabArea, AutoButtonColor=false }); ApplyCorner(settingsTabButton,3); ApplyStroke(settingsTabButton,nil,0)
     CollectionService:AddTag(settingsTabButton, "FreakyGui_Theme_Secondary_BG"); CollectionService:AddTag(settingsTabButton, "FreakyGui_Theme_TextDisabled") -- Initial state tags
-    local tabLine = Create("Frame", { Name="TabLine", Size=UDim2.new(1,0,0,1), Position=UDim2.new(0,0,1,0), BackgroundColor3=FreakyGui.Theme.Outline, BorderSizePixel=0, ZIndex=tabArea.ZIndex+3, Parent=tabArea })
+    local tabLine = Create("Frame", { Name="TabLine", Size=UDim2.new(1,0,0,1), Position=UDim2.new(0,0,1,0), BackgroundColor3=FreakyGui.Theme.Outline, BorderSizePixel=0, ZIndex=3, Parent=tabArea })
     CollectionService:AddTag(tabLine, "FreakyGui_Theme_Outline_BG")
     local contentArea = Create("Frame", { Name="ContentArea", Size=UDim2.new(1,0,1,-(topBar.Size.Y.Offset+tabArea.Size.Y.Offset)), Position=UDim2.new(0,0,0,topBar.Size.Y.Offset+tabArea.Size.Y.Offset), BackgroundTransparency=1, BorderSizePixel=0, ClipsDescendants=true, Parent=windowFrame })
 
-    -- Window Dragging Logic
+    -- Window Dragging Logic (Unchanged)
     local isWindowDragging = false; local windowDragStartMouse = nil; local windowDragStartPos = nil; local windowMouseMoveConn = nil; local windowMouseReleaseConn = nil
     local function onWindowMouseMove() if isWindowDragging then local cM=UserInputService:GetMouseLocation();local d=cM-windowDragStartMouse;windowFrame.Position=UDim2.new(windowDragStartPos.X.Scale,windowDragStartPos.X.Offset+d.X,windowDragStartPos.Y.Scale,windowDragStartPos.Y.Offset+d.Y) else if windowMouseMoveConn then windowMouseMoveConn:Disconnect(); windowMouseMoveConn=nil end end end
     local function onWindowMouseRelease(input) if isWindowDragging and input.UserInputType==Enum.UserInputType.MouseButton1 then isWindowDragging=false; if windowMouseMoveConn then windowMouseMoveConn:Disconnect();windowMouseMoveConn=nil end; if windowMouseReleaseConn then windowMouseReleaseConn:Disconnect();windowMouseReleaseConn=nil end end end
-    topBar.InputBegan:Connect(function(input)
-         -- Ignore if clicking close button
-         if input.UserInputType==Enum.UserInputType.MouseButton1 then
-             local mousePos = input.Position
-             local closeRect = Rect.new(closeButton.AbsolutePosition, closeButton.AbsolutePosition + closeButton.AbsoluteSize)
-             if closeRect:Contains(Vector2.new(mousePos.X, mousePos.Y)) then return end -- Don't drag if close button clicked
-
-             isWindowDragging=true;windowDragStartMouse=UserInputService:GetMouseLocation();windowDragStartPos=windowFrame.Position;
-             if windowMouseMoveConn then windowMouseMoveConn:Disconnect() end; if windowMouseReleaseConn then windowMouseReleaseConn:Disconnect() end;
-             windowMouseMoveConn=RunService.RenderStepped:Connect(onWindowMouseMove);
-             windowMouseReleaseConn=UserInputService.InputEnded:Connect(onWindowMouseRelease)
-         end
-    end)
+    topBar.InputBegan:Connect(function(input) if input.UserInputType==Enum.UserInputType.MouseButton1 then isWindowDragging=true;windowDragStartMouse=UserInputService:GetMouseLocation();windowDragStartPos=windowFrame.Position; if windowMouseMoveConn then windowMouseMoveConn:Disconnect() end; if windowMouseReleaseConn then windowMouseReleaseConn:Disconnect() end; windowMouseMoveConn=RunService.RenderStepped:Connect(onWindowMouseMove); windowMouseReleaseConn=UserInputService.InputEnded:Connect(onWindowMouseRelease) end end)
 
     -- Window Object Definition
-    local window = { ScreenGui=screenGui, Frame=windowFrame, ContentArea=contentArea, TabBar=tabBar, TabLayout=tabLayout, Tabs={}, TabButtons={}, ActiveTab=nil, Keybind=keybindCode, IsVisible=screenGui.Enabled, SettingsTab=nil, Elements = {} }
-    window.Window = window -- Self-reference for elements needing access
+    local window = { ScreenGui=screenGui, Frame=windowFrame, ContentArea=contentArea, TabBar=tabBar, TabLayout=tabLayout, Tabs={}, TabButtons={}, ActiveTab=nil, Keybind=keybindCode, IsVisible=windowFrame.Visible, SettingsTab=nil, Elements = {} }
+    window.Window = window -- Self-reference
     FreakyGui.Windows[screenGui] = window
 
-    -- Tab Bar Scrolling Logic
-    local function updateTabBarScroll()
-        task.wait(); -- Allow layout to update
-        if not tabBar or not tabBar.Parent then return end -- Stop if destroyed
-        local cw=tabLayout.AbsoluteContentSize.X;
-        local vw=tabBar.AbsoluteSize.X;
-        local maxS=math.max(0,cw-vw);
-        local currentCanvasX = tabBar.CanvasPosition.X
-        local canL=currentCanvasX > 5;
-        local canR=currentCanvasX < maxS - 5;
+    -- Tab Bar Scrolling Logic (Unchanged)
+    local function updateTabBarScroll() task.wait();local cw=tabLayout.AbsoluteContentSize.X;local vw=tabBar.AbsoluteSize.X;local maxS=math.max(0,cw-vw);local canL=tabBar.CanvasPosition.X>5;local canR=tabBar.CanvasPosition.X<maxS-5;local sbw=0;leftScroll.Visible=canL;rightScroll.Visible=canR;if canL then sbw=sbw+SCROLL_BUTTON_WIDTH+TAB_AREA_PADDING end;if canR then sbw=sbw+SCROLL_BUTTON_WIDTH+TAB_AREA_PADDING end;local totalReservedWidth=TAB_AREA_PADDING*2+sbw+SETTINGS_TAB_WIDTH+TAB_AREA_PADDING;tabBar.Size=UDim2.new(1,-totalReservedWidth,1,0);tabBar.Position=UDim2.new(0,TAB_AREA_PADDING+(canL and SCROLL_BUTTON_WIDTH+TAB_AREA_PADDING or 0),0,0);rightScroll.Position=UDim2.new(1,-TAB_AREA_PADDING*2-SETTINGS_TAB_WIDTH-(canR and SCROLL_BUTTON_WIDTH or 0),0,0)end
+    leftScroll.MouseButton1Click:Connect(function() local t=TweenService:Create(tabBar,TweenInfo.new(0.2),{CanvasPosition=Vector2.new(math.max(0,tabBar.CanvasPosition.X-FreakyGui.Theme.TabScrollStep),0)});t:Play();t.Completed:Wait();updateTabBarScroll()end)
+    rightScroll.MouseButton1Click:Connect(function() local maxS=math.max(0,tabLayout.AbsoluteContentSize.X-tabBar.AbsoluteSize.X);local t=TweenService:Create(tabBar,TweenInfo.new(0.2),{CanvasPosition=Vector2.new(math.min(maxS,tabBar.CanvasPosition.X+FreakyGui.Theme.TabScrollStep),0)});t:Play();t.Completed:Wait();updateTabBarScroll()end)
+    tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() tabBar.CanvasSize=UDim2.new(0,tabLayout.AbsoluteContentSize.X,0,0);updateTabBarScroll()end)
+    windowFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateTabBarScroll); task.delay(0.1, updateTabBarScroll)
 
-        leftScroll.Visible=canL; rightScroll.Visible=canR;
-
-        local leftWidth = canL and (SCROLL_BUTTON_WIDTH + TAB_AREA_PADDING) or 0
-        local rightWidth = canR and (SCROLL_BUTTON_WIDTH + TAB_AREA_PADDING) or 0
-        local settingsWidth = SETTINGS_TAB_WIDTH + TAB_AREA_PADDING
-
-        local totalReservedWidth = TAB_AREA_PADDING + leftWidth + rightWidth + settingsWidth + TAB_AREA_PADDING -- Padding L, ScrollL, ScrollR, Settings, Padding R
-        tabBar.Size=UDim2.new(1,-totalReservedWidth,1,0);
-        tabBar.Position=UDim2.new(0, TAB_AREA_PADDING + leftWidth, 0, 0);
-        rightScroll.Position=UDim2.new(1, -(TAB_AREA_PADDING + settingsWidth + rightWidth), 0, 0)
-        settingsTabButton.Position=UDim2.new(1, -(TAB_AREA_PADDING + settingsWidth), 0, 0)
-    end
-    leftScroll.MouseButton1Click:Connect(function() if not tabBar or not tabBar.Parent then return end local t=TweenService:Create(tabBar,TweenInfo.new(0.2),{CanvasPosition=Vector2.new(math.max(0,tabBar.CanvasPosition.X-FreakyGui.Theme.TabScrollStep),0)});t:Play();t.Completed:Connect(updateTabBarScroll) end)
-    rightScroll.MouseButton1Click:Connect(function() if not tabBar or not tabBar.Parent then return end local maxS=math.max(0,tabLayout.AbsoluteContentSize.X-tabBar.AbsoluteSize.X);local t=TweenService:Create(tabBar,TweenInfo.new(0.2),{CanvasPosition=Vector2.new(math.min(maxS,tabBar.CanvasPosition.X+FreakyGui.Theme.TabScrollStep),0)});t:Play();t.Completed:Connect(updateTabBarScroll) end)
-    tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() if tabBar and tabBar.Parent then tabBar.CanvasSize=UDim2.new(0,tabLayout.AbsoluteContentSize.X,0,0);updateTabBarScroll() end end)
-    windowFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateTabBarScroll);
-    task.delay(0.1, updateTabBarScroll) -- Initial calculation
-
-    -- Set Active Tab Logic (Updated for theme tagging/attributes)
+    -- Set Active Tab Logic (Updated for theme tagging)
     function window:SetActiveTab(tabToActivate)
-        if not tabToActivate or self.ActiveTab == tabToActivate then return end
-
-        -- Deactivate previous tab
+        if self.ActiveTab==tabToActivate then return end
         if self.ActiveTab then
             self.ActiveTab.Page.Visible=false
-            if self.ActiveTab.Button then -- Check if button exists (might be settings tab)
-                CollectionService:SetAttribute(self.ActiveTab.Button, "ThemeColorKey_BG", "Secondary")
-                CollectionService:SetAttribute(self.ActiveTab.Button, "ThemeColorKey_Text", "TextDisabled")
-                self.ActiveTab.Button.BackgroundColor3=FreakyGui.Theme.Secondary
-                self.ActiveTab.Button.TextColor3=FreakyGui.Theme.TextDisabled
-                local stroke = self.ActiveTab.Button:FindFirstChildWhichIsA("UIStroke"); if stroke then stroke.Enabled = false end
-            end
+            self.ActiveTab.Button.BackgroundColor3=FreakyGui.Theme.Secondary
+            self.ActiveTab.Button.TextColor3=FreakyGui.Theme.TextDisabled
+            CollectionService:SetAttribute(self.ActiveTab.Button, "ThemeColorKey_BG", "Secondary")
+            CollectionService:SetAttribute(self.ActiveTab.Button, "ThemeColorKey_Text", "TextDisabled")
+            ApplyStroke(self.ActiveTab.Button,nil,0)
         end
-
-        -- Activate new tab
         tabToActivate.Page.Visible=true
-        if tabToActivate.Button then
-            CollectionService:SetAttribute(tabToActivate.Button, "ThemeColorKey_BG", "Background") -- Active tab matches window BG
-            CollectionService:SetAttribute(tabToActivate.Button, "ThemeColorKey_Text", "TextActive")
-            tabToActivate.Button.BackgroundColor3=FreakyGui.Theme.Background
-            tabToActivate.Button.TextColor3=FreakyGui.Theme.TextActive
-            local stroke = tabToActivate.Button:FindFirstChildWhichIsA("UIStroke") or ApplyStroke(tabToActivate.Button) -- Ensure stroke exists
-            stroke.Color = FreakyGui.Theme.Outline -- Use outline for active tab border
-            stroke.Thickness = 1
-            stroke.Enabled = true
-            CollectionService:SetAttribute(stroke, "ThemeColorKey", "Outline") -- Ensure stroke uses Outline color
-        end
-
+        tabToActivate.Button.BackgroundColor3=FreakyGui.Theme.Background -- Active tab matches window BG
+        tabToActivate.Button.TextColor3=FreakyGui.Theme.TextActive
+        CollectionService:SetAttribute(tabToActivate.Button, "ThemeColorKey_BG", "Background")
+        CollectionService:SetAttribute(tabToActivate.Button, "ThemeColorKey_Text", "TextActive")
+        ApplyStroke(tabToActivate.Button, FreakyGui.Theme.Outline, 1) -- Show stroke with outline color
         self.ActiveTab=tabToActivate
-        -- Ensure the active tab is visible in the scroll frame
-        if self.ActiveTab and self.ActiveTab.Button and self.TabBar and self.TabBar.Parent then
-            pcall(function() self.TabBar:ScrollToInstance(self.ActiveTab.Button) end)
-            task.delay(0.05, updateTabBarScroll) -- Update scroll buttons after scrolling
-        end
     end
 
-    -- Theme Refresh Function (Detailed Implementation)
+    -- Theme Refresh Function
     function window:RefreshTheme()
-        if not window or not window.Frame or not window.Frame.Parent then
-             print("FreakyGui: Cannot refresh theme, window seems destroyed.")
-             return
-        end
         print("FreakyGui: Refreshing theme...")
         local startTime = tick()
-        local theme = FreakyGui.Theme -- Cache for minor performance
-
-        -- Update base window elements first
-        pcall(function()
-            windowFrame.BackgroundColor3 = theme.Background
-            ApplyStroke(windowFrame, theme.Outline, 1)
-            ApplyGradient(windowFrame, "Background", "Background_Gradient_Enabled", "Background_Gradient_Color", "Background_Gradient_Transparency")
-            topBar.BackgroundColor3 = theme.Header
-            topBarFix.BackgroundColor3 = theme.Header
-            ApplyGradient(topBar, "Header", "Header_Gradient_Enabled", "Header_Gradient_Color", "Header_Gradient_Transparency")
-            titleLabel.TextColor3 = theme.Text
-            titleLabel.Font = theme.Font
-            titleLabel.TextSize = theme.TitleFontSize
-            tabLine.BackgroundColor3 = theme.Outline
-        end)
-
-        -- Iterate through ALL relevant descendants and update based on tags/attributes
+        -- Iterate through ALL descendants and update based on tags/attributes
         for _, descendant in ipairs(window.Frame:GetDescendants()) do
-            if not pcall(function() local _ = descendant.Name end) then continue end -- Skip if object is invalid/destroyed mid-loop
-            if not descendant:IsA("GuiObject") and not descendant:IsA("UILayout") then continue end -- Skip non-GUI/Layout
+            if not descendant:IsA("GuiObject") then continue end -- Skip non-GUI
 
             local tags = CollectionService:GetTags(descendant)
-            if #tags == 0 and not descendant:IsA("UIGradient") and not descendant:IsA("UIStroke") then -- Ignore untagged unless it's a stroke/gradient potentially managed by parent
-                continue
+            local handled = false
+
+            -- Handle Backgrounds (BG)
+            for _, tag in ipairs(tags) do
+                if string.sub(tag, -3) == "_BG" then
+                    local themeKey = string.gsub(tag, "FreakyGui_Theme_", "")
+                    themeKey = string.gsub(themeKey, "_BG", "")
+                    local stateKey = descendant:GetAttribute("ThemeColorKey_BG") -- Check for state-specific override
+                    pcall(UpdateElementThemeColor, descendant, "BackgroundColor3", stateKey or themeKey)
+                    handled = true; break
+                end
             end
 
-            -- 1. Background Colors (Frames, Buttons, TextBoxes)
-            if descendant:IsA("Frame") or descendant:IsA("TextButton") or descendant:IsA("TextBox") or descendant:IsA("ImageButton") then
-                local baseKey = nil
+            -- Handle Text Colors
+            if not handled and descendant:IsA("GuiLabel") then -- TextLabel or TextButton
+                 for _, tag in ipairs(tags) do
+                     if string.find(tag, "FreakyGui_Theme_") and not string.find(tag, "_BG") and not string.find(tag, "_Outline") and not string.find(tag, "_ScrollBar") and not string.find(tag, "_Gradient") then
+                        local themeKey = string.gsub(tag, "FreakyGui_Theme_", "")
+                        local stateKey = descendant:GetAttribute("ThemeColorKey_Text")
+                        pcall(UpdateElementThemeColor, descendant, "TextColor3", stateKey or themeKey)
+                        handled = true; break
+                     end
+                 end
+            end
+
+            -- Handle Strokes (Outline)
+            if not handled and descendant:IsA("UIStroke") then
                 for _, tag in ipairs(tags) do
-                    if string.sub(tag, -3) == "_BG" then
-                        baseKey = string.gsub(tag, "FreakyGui_Theme_", "")
-                        baseKey = string.gsub(baseKey, "_BG", "")
-                        break
-                    end
-                end
-                if baseKey then
-                    local stateKey = descendant:GetAttribute("ThemeColorKey_BG") -- Check for state override
-                    UpdateElementThemeColor(descendant, "BackgroundColor3", stateKey or baseKey)
-                end
-            end
-
-            -- 2. Text Colors (Labels, Buttons, TextBoxes)
-            if descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox") then
-                 local baseKey = nil
-                 for _, tag in ipairs(tags) do
-                     -- Match tags like FreakyGui_Theme_Text, FreakyGui_Theme_TextDisabled, FreakyGui_Theme_TextActive
-                     if string.find(tag, "FreakyGui_Theme_Text", 1, true) then
-                         baseKey = string.gsub(tag, "FreakyGui_Theme_", "")
-                         break
-                     end
-                 end
-                 if baseKey then
-                     local stateKey = descendant:GetAttribute("ThemeColorKey_Text") -- Check for state override (e.g., textbox focus)
-                     UpdateElementThemeColor(descendant, "TextColor3", stateKey or baseKey)
-                 end
-                 -- Update Font and Size (Less likely to change dynamically, but good practice)
-                 pcall(function() descendant.Font = theme.Font end)
-                 if descendant:IsA("TextLabel") and descendant.Name ~= "Title" and descendant.Name ~= "SeparatorLabel" then -- Don't override Title/Separator size unless specifically tagged
-                     pcall(function() descendant.TextSize = theme.FontSize end)
-                 end
-                  if descendant:IsA("TextButton") and descendant.Name ~= "CloseButton" and descendant.Name ~= "LeftScroll" and descendant.Name ~= "RightScroll" then
-                      pcall(function() descendant.TextSize = theme.FontSize end)
-                  end
-            end
-
-            -- 3. Strokes (UIStroke)
-            if descendant:IsA("UIStroke") then
-                local baseKey = nil
-                 for _, tag in ipairs(tags) do
-                     -- Only match the Outline tag as the *base* intended color
-                     if string.find(tag, "FreakyGui_Theme_Outline", 1, true) then
-                         baseKey = "Outline"
-                         break
-                     end
-                 end
-                 if baseKey then
-                     local stateKey = descendant:GetAttribute("ThemeColorKey") -- General state key for strokes (e.g., Primary, TextActive)
-                     UpdateElementThemeColor(descendant, "Color", stateKey or baseKey)
-                     -- Re-apply thickness based on state or default
-                     local parent = descendant.Parent
-                     if parent and parent:IsA("TextBox") and parent:GetAttribute("ThemeColorKey") == "Primary" then
-                         descendant.Thickness = 1.5 -- Focused textbox
-                     elseif parent and parent:IsA("TextButton") and parent:GetAttribute("ThemeColorKey_BG") == "Primary" then
-                          descendant.Thickness = 1.5 -- Keybind listening
-                     else
-                         descendant.Thickness = 1 -- Default thickness
+                     if string.find(tag, "FreakyGui_Theme_Outline") or string.find(tag, "FreakyGui_Theme_Primary", 1, true) or string.find(tag, "FreakyGui_Theme_TextActive", 1, true) then -- Check for state keys used by some strokes
+                        local themeKey = string.gsub(tag, "FreakyGui_Theme_", "")
+                        local stateKey = descendant:GetAttribute("ThemeColorKey") -- Strokes use general ThemeColorKey attribute
+                        pcall(UpdateElementThemeColor, descendant, "Color", stateKey or themeKey)
+                        handled = true; break
                      end
                  end
             end
 
-            -- 4. ScrollBars (ScrollingFrame)
-            if descendant:IsA("ScrollingFrame") then
-                 local baseKey = nil
+            -- Handle ScrollBars
+            if not handled and descendant:IsA("ScrollingFrame") then
                  for _, tag in ipairs(tags) do
                      if string.find(tag, "_ScrollBar") then
-                        baseKey = string.gsub(tag, "FreakyGui_Theme_", "")
-                        baseKey = string.gsub(baseKey, "_ScrollBar", "")
-                        break
+                        local themeKey = string.gsub(tag, "FreakyGui_Theme_", "")
+                        themeKey = string.gsub(themeKey, "_ScrollBar", "")
+                        pcall(UpdateElementThemeColor, descendant, "ScrollBarImageColor3", themeKey)
+                        handled = true; break
                      end
-                 end
-                 if baseKey then
-                    UpdateElementThemeColor(descendant, "ScrollBarImageColor3", baseKey)
-                    descendant.ScrollBarThickness = 4 -- Ensure thickness reset
                  end
             end
 
-             -- 5. Gradients (UIGradient)
-            if descendant:IsA("UIGradient") then
-                 local baseKey = nil
+             -- Handle Gradients
+            if not handled and descendant:IsA("UIGradient") then
                  for _, tag in ipairs(tags) do
                      if string.find(tag, "_Gradient_") then
                          local parts = string.split(tag, "_")
-                         if #parts >= 4 then baseKey = parts[4] end -- e.g., Background
-                         break
-                     end
-                 end
-                 if baseKey then
-                     local enabledKey = baseKey.."_Gradient_Enabled"
-                     local colorKey = baseKey.."_Gradient_Color"
-                     local transKey = baseKey.."_Gradient_Transparency"
-                     local enabled = theme[enabledKey]
-
-                     if enabled and theme[colorKey] and theme[baseKey] and theme[transKey] then
-                         descendant.Enabled = true
-                         descendant.Color = ColorSequence.new({
-                             ColorSequenceKeypoint.new(0, theme[colorKey]),
-                             ColorSequenceKeypoint.new(1, theme[baseKey])
-                         })
-                         descendant.Transparency = NumberSequence.new({
-                             NumberSequenceKeypoint.new(0, theme[transKey]),
-                             NumberSequenceKeypoint.new(1, 0)
-                         })
-                         descendant.Rotation = 90
-                     else
-                         descendant.Enabled = false -- Disable gradient if theme flag is off or keys missing
+                         local baseKey = parts[4] -- e.g., Background
+                         local enabled = FreakyGui.Theme[baseKey.."_Gradient_Enabled"]
+                         if enabled then
+                             descendant.Color = ColorSequence.new({
+                                 ColorSequenceKeypoint.new(0, FreakyGui.Theme[baseKey.."_Gradient_Color"]),
+                                 ColorSequenceKeypoint.new(1, FreakyGui.Theme[baseKey])
+                             })
+                             descendant.Transparency = NumberSequence.new({
+                                 NumberSequenceKeypoint.new(0, FreakyGui.Theme[baseKey.."_Gradient_Transparency"]),
+                                 NumberSequenceKeypoint.new(1, 0)
+                             })
+                         else
+                             descendant.Enabled = false -- Disable gradient if theme flag is off
+                         end
+                         handled = true; break
                      end
                  end
             end
 
-            -- 6. Layouts (Padding, Spacing) - Apply relevant theme values
-            if descendant:IsA("UIPadding") then
-                 -- Apply default padding unless it's clearly overridden (e.g., GroupBox padding)
-                 if descendant.Parent == window.ContentArea or (descendant.Parent:IsA("ScrollingFrame") and descendant.Parent.Name:find("_Page")) then
-                     descendant.PaddingTop = UDim.new(0,theme.Padding); descendant.PaddingBottom = UDim.new(0,theme.Padding)
-                     descendant.PaddingLeft = UDim.new(0,theme.Padding); descendant.PaddingRight = UDim.new(0,theme.Padding)
-                 elseif descendant.Parent:IsA("Frame") and descendant.Parent.Name:find("_Frame") and descendant.Parent.Parent ~= window.ContentArea then -- Assume GroupBox padding
-                     descendant.PaddingTop = UDim.new(0, theme.GroupBoxPadding); descendant.PaddingBottom = UDim.new(0, theme.GroupBoxPadding)
-                     descendant.PaddingLeft = UDim.new(0, theme.GroupBoxPadding); descendant.PaddingRight = UDim.new(0, theme.GroupBoxPadding)
-                     -- Re-check if title bar exists and adjust top padding
-                     local titleFrame = descendant.Parent:FindFirstChild("TitleFrame")
-                     if titleFrame then descendant.PaddingTop = UDim.new(0, theme.GroupBoxTitleHeight + theme.GroupBoxPadding) end
-                 end
-            elseif descendant:IsA("UIListLayout") then
-                 if descendant.Parent == window.ContentArea or (descendant.Parent:IsA("ScrollingFrame") and descendant.Parent.Name:find("_Page")) then
-                     descendant.Padding = UDim.new(0,theme.Padding) -- Padding between elements in main page/settings
-                 elseif descendant.Parent:IsA("Frame") and descendant.Parent.Name:find("_Frame") then -- GroupBox List Layout
-                     descendant.Padding = UDim.new(0,theme.GroupBoxPadding) -- Padding between elements in groupbox
-                 end
-            end
-
-        end -- End descendant loop
-
-        -- Special handling for the currently active tab button after general refresh
-        if window.ActiveTab and window.ActiveTab.Button and window.ActiveTab.Button.Parent then
-             window.ActiveTab.Button.BackgroundColor3 = theme.Background
-             window.ActiveTab.Button.TextColor3 = theme.TextActive
-             local stroke = window.ActiveTab.Button:FindFirstChildWhichIsA("UIStroke")
-             if stroke then
-                 stroke.Color = theme.Outline
-                 stroke.Thickness = 1
-                 stroke.Enabled = true
+             -- Special case: Active tab button stroke needs to match outline
+             if descendant == window.ActiveTab.Button:FindFirstChildWhichIsA("UIStroke") then
+                 descendant.Color = FreakyGui.Theme.Outline
+             end
+              -- Special case: Active tab button needs background color refresh
+             if descendant == window.ActiveTab.Button then
+                 descendant.BackgroundColor3 = FreakyGui.Theme.Background
              end
         end
-
-         -- Update singleton tooltip too
-        if TooltipLabel and TooltipLabel.Parent == screenGui then -- Ensure it belongs to this window's GUI
-             TooltipLabel.BackgroundColor3 = theme.TooltipBackground
-             TooltipLabel.TextColor3 = theme.TooltipText
-             TooltipLabel.Font = theme.Font
-             TooltipLabel.TextSize = theme.TooltipFontSize
-             local stroke = TooltipLabel:FindFirstChildWhichIsA("UIStroke"); if stroke then stroke.Color = theme.Outline; stroke.Thickness = 0.5 end
+        -- Update singleton tooltip too
+        if TooltipLabel then
+             TooltipLabel.BackgroundColor3 = FreakyGui.Theme.TooltipBackground
+             TooltipLabel.TextColor3 = FreakyGui.Theme.TooltipText
+             local stroke = TooltipLabel:FindFirstChildWhichIsA("UIStroke"); if stroke then stroke.Color = FreakyGui.Theme.Outline end
         end
         print("FreakyGui: Theme refresh complete in "..string.format("%.3f", tick()-startTime).."s")
     end
@@ -1293,10 +963,10 @@ function FreakyGui:CreateWindow(options)
     -- Settings Tab Setup (Now uses GroupBoxes)
     local settingsPage = Create("ScrollingFrame",{Name="Settings_Page",Size=UDim2.new(1,0,1,0),Position=UDim2.new(0,0,0,0),BackgroundTransparency=1,BorderSizePixel=0,Visible=false,CanvasSize=UDim2.new(0,0,0,0),ScrollBarImageColor3=FreakyGui.Theme.Primary,ScrollBarThickness=4,Parent=contentArea})
     CollectionService:AddTag(settingsPage, "FreakyGui_Theme_Primary_ScrollBar")
-    local settingsPageLayout = Create("UIListLayout",{Parent=settingsPage,SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,FreakyGui.Theme.Padding)});settingsPageLayout.Changed:Connect(function() if settingsPage and settingsPage.Parent then settingsPage.CanvasSize=UDim2.new(0,0,0,settingsPageLayout.AbsoluteContentSize.Y + FreakyGui.Theme.Padding*2) end end) -- Extra padding at bottom
+    local settingsPageLayout = Create("UIListLayout",{Parent=settingsPage,SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,FreakyGui.Theme.Padding)});settingsPageLayout.Changed:Connect(function()settingsPage.CanvasSize=UDim2.new(0,0,0,settingsPageLayout.AbsoluteContentSize.Y + FreakyGui.Theme.Padding*2)end) -- Extra padding at bottom
     Create("UIPadding", { Parent=settingsPage, PaddingTop=UDim.new(0,FreakyGui.Theme.Padding), PaddingBottom=UDim.new(0,FreakyGui.Theme.Padding), PaddingLeft=UDim.new(0,FreakyGui.Theme.Padding), PaddingRight=UDim.new(0,FreakyGui.Theme.Padding) })
 
-    window.SettingsTab = {Name="Settings", Page=settingsPage, Button=settingsTabButton, Layout=settingsPageLayout, Elements={}, Window = window} -- Pass window ref
+    window.SettingsTab = {Name="Settings", Page=settingsPage, Button=settingsTabButton, Layout=settingsPageLayout, Elements={}, Window = window}
     window.Tabs["Settings"]=window.SettingsTab
     settingsTabButton.MouseButton1Click:Connect(function()window:SetActiveTab(window.SettingsTab)end)
     settingsTabButton.MouseEnter:Connect(function()if window.ActiveTab~=window.SettingsTab then settingsTabButton.BackgroundColor3=Color3.Lerp(FreakyGui.Theme.Secondary,FreakyGui.Theme.Background,0.3)end end)
@@ -1309,58 +979,38 @@ function FreakyGui:CreateWindow(options)
 
     -- Populate Settings Tab using GroupBoxes
     local settingsGeneralGroup = window.SettingsTab:AddGroupBox({ Title = "General" })
-    -- Store the keybind object to update it later if needed
-    local keybindPickerObj = settingsGeneralGroup:AddKeybindPicker({
+    settingsGeneralGroup:AddKeybindPicker({
         Text = "Toggle UI Key", Default = keybindCode, Tooltip = "The key used to open/close this GUI.",
         Callback = function(newKeyCode)
             print("Keybind set to:", newKeyCode)
-            if not window or not window.ScreenGui then return end -- Window might be destroyed
             window.Keybind = newKeyCode
-            -- Disconnect old connection if exists for this specific GUI
-            if FreakyGui.KeybindConnections[screenGui] then
-                 FreakyGui.KeybindConnections[screenGui]:Disconnect()
-                 FreakyGui.KeybindConnections[screenGui] = nil
-            end
-            -- Create new connection
+            if FreakyGui.KeybindConnections[screenGui] then FreakyGui.KeybindConnections[screenGui]:Disconnect() end
             local c=UserInputService.InputBegan:Connect(function(i,gp)
                 if not gp and i.UserInputType==Enum.UserInputType.Keyboard and i.KeyCode==window.Keybind then
-                     -- Only toggle if no element is currently capturing input in this window
                      if not FreakyGui.InputCaptureConnections[screenGui] then
                         if FreakyGui.Windows[screenGui] then FreakyGui.Windows[screenGui]:ToggleVisibility() end
-                    else
-                        -- print("Keybind ignored, input captured by:", FreakyGui.InputCaptureConnections[screenGui])
                     end
                 end
             end)
             FreakyGui.KeybindConnections[screenGui] = c
         end
     })
-    -- Initial call to set up the first keybind connection
-    keybindPickerObj:Set(keybindCode) -- Use Set to trigger the callback and setup connection
 
     local settingsThemeActionsGroup = window.SettingsTab:AddGroupBox({ Title = "Theme Actions" })
     settingsThemeActionsGroup:AddButton({Text="Refresh Theme", Tooltip="Applies the current theme colors to all elements.", Callback=function() window:RefreshTheme() end})
     settingsThemeActionsGroup:AddButton({Text="Export Theme", Tooltip="Prints the current theme table to the Developer Console.", Callback=function()
-        local themeStr = "-- FreakyGui Theme Export (" .. os.date() .. ")\n"
-        themeStr = themeStr .. "return {\n"
-        -- Sort keys for consistent output
-        local sortedKeys = {}
-        for k,_ in pairs(FreakyGui.Theme) do table.insert(sortedKeys, k) end
-        table.sort(sortedKeys)
-
-        for _, key in ipairs(sortedKeys) do
-             local value = FreakyGui.Theme[key]
+        local themeStr = "FreakyGui.Theme = {\n"
+        for key, value in pairs(FreakyGui.Theme) do
             themeStr = themeStr .. "\t" .. key .. " = "
-            local vType = typeof(value)
-            if vType == "Color3" then
-                themeStr = themeStr .. string.format("Color3.fromRGB(%d, %d, %d)", math.floor(value.R*255+0.5), math.floor(value.G*255+0.5), math.floor(value.B*255+0.5))
-            elseif vType == "boolean" then
+            if typeof(value) == "Color3" then
+                themeStr = themeStr .. string.format("Color3.fromRGB(%d, %d, %d)", value.R*255, value.G*255, value.B*255)
+            elseif typeof(value) == "boolean" then
                  themeStr = themeStr .. tostring(value)
-             elseif vType == "number" then
+             elseif typeof(value) == "number" then
                  themeStr = themeStr .. tostring(value)
-             elseif vType == "string" then
-                  themeStr = themeStr .. '"' .. value:gsub("\\", "\\\\"):gsub("\"", "\\\""):gsub("\n", "\\n") .. '"' -- Escape quotes and newlines
-             elseif vType == "EnumItem" then
+             elseif typeof(value) == "string" then
+                  themeStr = themeStr .. '"' .. value .. '"'
+             elseif typeof(value) == "EnumItem" then
                  themeStr = themeStr .. "Enum." .. value.EnumType.Name .. "." .. value.Name
             else
                  themeStr = themeStr .. '"' .. tostring(value) .. '"' -- Fallback
@@ -1369,7 +1019,6 @@ function FreakyGui:CreateWindow(options)
         end
         themeStr = themeStr .. "}"
         print(themeStr)
-        warn("Theme exported below. Copy the text starting from 'return {' to save.")
     end})
 
     local settingsThemeGroup = window.SettingsTab:AddGroupBox({ Title = "Theme Colors" })
@@ -1381,14 +1030,10 @@ function FreakyGui:CreateWindow(options)
          settingsThemeGroup:AddColorPickerElement({ -- Use AddColorPickerElement
              Text = themeKey,
              Default = FreakyGui.Theme[themeKey],
-             Tooltip = "Edit the '" .. themeKey .. "' color.",
              Callback = function(newColor)
                  FreakyGui.Theme[themeKey] = newColor
-                 -- Minimal direct update for instant feedback where essential, RefreshTheme handles the rest
+                 -- Minimal direct update for instant feedback, RefreshTheme handles the rest
                  if themeKey == "Primary" then settingsPage.ScrollBarImageColor3 = newColor end
-                 if themeKey == "Background" then if windowFrame and windowFrame.Parent then windowFrame.BackgroundColor3 = newColor end end -- Update main BG instantly
-                 -- Maybe consider a throttled RefreshTheme call here if performance allows?
-                 -- For now, rely on manual Refresh button for full update.
              end
          })
     end
@@ -1396,23 +1041,19 @@ function FreakyGui:CreateWindow(options)
 
     -- Add Tab Function
     function window:AddTab(tabName)
-        if self.Tabs[tabName] then warn("FreakyGui Warning: Tab already exists:", tabName); return self.Tabs[tabName] end
-        local ti = #self.TabButtons + 1;
+        if self.Tabs[tabName] then warn("Tab already exists:", tabName); return self.Tabs[tabName] end
+        local ti=#self.TabButtons+1;
         local ts=TextService:GetTextSize(tabName,FreakyGui.Theme.FontSize,FreakyGui.Theme.Font,Vector2.new(math.huge,FreakyGui.Theme.TabHeight));
-        local bw=math.max(60, ts.X + FreakyGui.Theme.TabButtonPadding*2); -- Minimum tab width
-        local tb=Create("TextButton",{Name=tabName.."_Button",Size=UDim2.new(0,bw,1,0),Text=tabName,Font=FreakyGui.Theme.Font,TextSize=FreakyGui.Theme.FontSize,TextColor3=FreakyGui.Theme.TextDisabled,BackgroundColor3=FreakyGui.Theme.Secondary,BorderSizePixel=0,LayoutOrder=ti,Parent=self.TabBar,AutoButtonColor=false});ApplyCorner(tb,3);ApplyStroke(tb,nil,0);-- No stroke initially
-        -- Set initial theme attributes
-        CollectionService:SetAttribute(tb, "ThemeColorKey_BG", "Secondary");
-        CollectionService:SetAttribute(tb, "ThemeColorKey_Text", "TextDisabled")
-        CollectionService:AddTag(tb, "FreakyGui_Theme_Secondary_BG"); -- Base BG tag
-        CollectionService:AddTag(tb, "FreakyGui_Theme_TextDisabled") -- Base Text tag
+        local bw=ts.X+FreakyGui.Theme.TabButtonPadding*2;
+        local tb=Create("TextButton",{Name=tabName.."_Button",Size=UDim2.new(0,bw,1,0),Text=tabName,Font=FreakyGui.Theme.Font,TextSize=FreakyGui.Theme.FontSize,TextColor3=FreakyGui.Theme.TextDisabled,BackgroundColor3=FreakyGui.Theme.Secondary,BorderSizePixel=0,LayoutOrder=ti,Parent=self.TabBar,AutoButtonColor=false});ApplyCorner(tb,3);ApplyStroke(tb,nil,0);
+        CollectionService:SetAttribute(tb, "ThemeColorKey_BG", "Secondary"); CollectionService:SetAttribute(tb, "ThemeColorKey_Text", "TextDisabled")
 
         local tp=Create("ScrollingFrame",{Name=tabName.."_Page",Size=UDim2.new(1,0,1,0),Position=UDim2.new(0,0,0,0),BackgroundTransparency=1,BorderSizePixel=0,Visible=false,CanvasSize=UDim2.new(0,0,0,0),ScrollBarImageColor3=FreakyGui.Theme.Primary,ScrollBarThickness=4,Parent=self.ContentArea});
         CollectionService:AddTag(tp, "FreakyGui_Theme_Primary_ScrollBar")
-        local pl=Create("UIListLayout",{Parent=tp,SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,FreakyGui.Theme.Padding)});pl.Changed:Connect(function() if tp and tp.Parent then tp.CanvasSize=UDim2.new(0,0,0,pl.AbsoluteContentSize.Y + FreakyGui.Theme.Padding*2) end end); -- Extra padding
+        local pl=Create("UIListLayout",{Parent=tp,SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,FreakyGui.Theme.Padding)});pl.Changed:Connect(function()tp.CanvasSize=UDim2.new(0,0,0,pl.AbsoluteContentSize.Y + FreakyGui.Theme.Padding*2)end); -- Extra padding
         Create("UIPadding", { Parent=tp, PaddingTop=UDim.new(0,FreakyGui.Theme.Padding), PaddingBottom=UDim.new(0,FreakyGui.Theme.Padding), PaddingLeft=UDim.new(0,FreakyGui.Theme.Padding), PaddingRight=UDim.new(0,FreakyGui.Theme.Padding) })
 
-        local tab={Name=tabName, Page=tp, Button=tb, Layout=pl, Elements={}, Window = window}; -- Pass window ref
+        local tab={Name=tabName, Page=tp, Button=tb, Layout=pl, Elements={}, Window = window};
         self.Tabs[tabName]=tab;
         self.TabButtons[ti]=tab;
         tb.MouseButton1Click:Connect(function()self:SetActiveTab(tab)end);
@@ -1421,7 +1062,6 @@ function FreakyGui:CreateWindow(options)
         if not self.ActiveTab then self:SetActiveTab(tab)end;
         updateTabBarScroll();
 
-        -- Assign element functions to this specific tab object
         for name,func in pairs(ElementFunctions) do
             tab[name] = function(passedOpts) return func(tab, tab.Page, tab.Layout, passedOpts) end
         end;
@@ -1429,158 +1069,73 @@ function FreakyGui:CreateWindow(options)
     end
 
     -- Window Management Functions
-    function window:ToggleVisibility() self:SetVisibility(not self.IsVisible) end
-
+    function window:ToggleVisibility()self:SetVisibility(not self.IsVisible)end
     function window:SetVisibility(v)
-        if not windowFrame or not windowFrame.Parent then return end -- Don't run if destroyed
-        if self.IsVisible == v then return end -- No change needed
         self.IsVisible=v;
-        local currentPos = windowFrame.Position
-        local targetPosOpen = UDim2.new(0.5, -width/2, 0.5, -height/2)
-        local targetPosClosed = UDim2.new(0.5, -width/2, 0.45, -height/2) -- Slightly above center
-
         if v then
-            self.ScreenGui.Enabled=true
-            windowFrame.Visible=true -- Make visible before tween
-            windowFrame.Position = targetPosClosed -- Start slightly up
-            windowFrame.BackgroundTransparency = 1 -- Start transparent
-            TweenService:Create(windowFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = targetPosOpen, BackgroundTransparency = 0}):Play()
+            self.ScreenGui.Enabled=v
+            windowFrame.Visible=false -- Hide initially
+            -- Optional: Add entry animation
+            windowFrame.Position = UDim2.new(0.5, -width/2, 0.45, -height/2) -- Start slightly up
+            windowFrame.BackgroundTransparency = 0.5
+            windowFrame.Visible = true
+            TweenService:Create(windowFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -width/2, 0.5, -height/2), BackgroundTransparency = 0}):Play()
         else
-            -- Forcefully release any input capture associated with this window BEFORE animating out
-            if FreakyGui.ActiveDropdown and FreakyGui.ActiveDropdown.Button and FreakyGui.ActiveDropdown.Button:IsDescendantOf(window.Frame) then
-                FreakyGui.ActiveDropdown:Close() -- Close dropdown if it belongs to this window
-            end
-            if FreakyGui.InputCaptureConnections[screenGui] then
-                local capturedElement = FreakyGui.InputCaptureConnections[screenGui]
-                 -- print("Force releasing input capture due to hide:", capturedElement)
-                if typeof(capturedElement) == "Instance" then
-                     -- Attempt to visually reset specific elements if needed (e.g., Keybind Picker)
-                     if capturedElement.Name == "SetBtn" and capturedElement.Parent and capturedElement.Parent.Name:find("_KeyFrm") then
-                         local keybindObj = nil
-                         -- Search diligently for the keybind object
-                         for tabName, tabData in pairs(self.Tabs) do
-                             if tabData.Elements then
-                                for elementName, elementData in pairs(tabData.Elements) do
-                                     if typeof(elementData) == "table" and elementData.Button == capturedElement then
-                                         keybindObj = elementData; break;
-                                     end
-                                end
-                             end
-                             if keybindObj then break end
-                             if tabData.Elements and tabData.Elements.Frame then -- Check inside group boxes too
-                                 for _, elementData in pairs(tabData.Elements.Frame:GetChildren()) do
-                                     if elementData:IsA("Frame") and elementData.Name:find("_KeyFrm") then
-                                         local btn = elementData:FindFirstChild("SetBtn")
-                                         if btn == capturedElement then
-                                             -- Find associated object (this is harder, requires better tracking or assumptions)
-                                             -- For now, just try resetting text if possible
-                                             pcall(function() capturedElement.Text = "Set: " .. tostring(capturedElement:GetAttribute("CurrentKey") or "?") end) -- Placeholder reset
-                                             break
-                                         end
-                                     end
-                                 end
-                             end
-                         end
-                         if keybindObj and keybindObj.Set then pcall(keybindObj.Set, keybindObj:Get()) end -- Reset text/state if found
-
-                     elseif capturedElement:IsA("TextBox") then
-                         -- Release focus if it's a textbox being captured
-                         if UserInputService:GetFocusedTextBox() == capturedElement then
-                             capturedElement:ReleaseFocus(false) -- Release focus without submitting
-                         end
-                    elseif capturedElement:IsA("Frame") and capturedElement.Name == "Nub" then
-                         -- If slider nub was being dragged, stop the drag visually/logically
-                         -- Best effort: just release input. Visual state might be slightly off until next interaction.
-                    end
-                end
-                 ReleaseInput(window, capturedElement) -- Release capture
-            end
-
-            -- Start exit animation
-             TweenService:Create(windowFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = targetPosClosed, BackgroundTransparency = 1}):Play()
+            -- Optional: Add exit animation
+             TweenService:Create(windowFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(0.5, -width/2, 0.45, -height/2), BackgroundTransparency = 1}):Play()
              task.delay(0.2, function()
-                 if not self.IsVisible and windowFrame and windowFrame.Parent then -- Check if it wasn't reopened during animation AND still exists
+                 if not self.IsVisible then -- Check if it wasn't reopened during animation
                      windowFrame.Visible=false
-                     if self.ScreenGui then self.ScreenGui.Enabled=false end -- Check ScreenGui too
-                     -- Reset properties fully after hiding for clean reopen state
-                     windowFrame.Position = targetPosOpen -- Reset position
+                     self.ScreenGui.Enabled=false
+                     windowFrame.Position = UDim2.new(0.5, -width/2, 0.5, -height/2) -- Reset position for next open
                      windowFrame.BackgroundTransparency = 0
                  end
              end)
         end
+
+        if not v then
+            if FreakyGui.ActiveDropdown then FreakyGui.ActiveDropdown:Close() end -- Close dropdown on UI hide
+            if FreakyGui.InputCaptureConnections[screenGui] then -- If hiding while input is captured (e.g. keybind picker)
+                if typeof(FreakyGui.InputCaptureConnections[screenGui]) == "Instance" and FreakyGui.InputCaptureConnections[screenGui]:IsA("TextButton") then
+                     -- Attempt to reset keybind picker visually
+                     local kbButton = FreakyGui.InputCaptureConnections[screenGui]
+                     if kbButton.Name == "SetBtn" then
+                         local kObj = self.SettingsTab.Elements["Toggle UI Key"] -- Brittle assumption
+                         if kObj and kObj.Button == kbButton then kObj:Set(kObj:Get()) end -- Call Set to reset text
+                     end
+                 end
+                 ReleaseInput(window, FreakyGui.InputCaptureConnections[screenGui]) -- Release capture forcefully
+            end
+        end
     end
 
     function window:Destroy()
-        local screenGuiRef = self.ScreenGui -- Store reference
-        if not screenGuiRef then return end -- Already destroyed
-
-        print("FreakyGui: Destroying Window '"..windowTitle.."'...")
-
-        -- Disconnect keybind listener associated with this window
-        if FreakyGui.KeybindConnections[screenGuiRef] then
-            pcall(FreakyGui.KeybindConnections[screenGuiRef].Disconnect, FreakyGui.KeybindConnections[screenGuiRef]);
-            FreakyGui.KeybindConnections[screenGuiRef]=nil;
-        end
-        -- Clear input capture state for this window
-        if FreakyGui.InputCaptureConnections[screenGuiRef] then
-            FreakyGui.InputCaptureConnections[screenGuiRef] = nil
-        end
-        -- Clear active dropdown if it belonged to this window
-        if FreakyGui.ActiveDropdown and FreakyGui.ActiveDropdown.Button and pcall(function() return FreakyGui.ActiveDropdown.Button:IsDescendantOf(screenGuiRef) end) then
-            FreakyGui.ActiveDropdown = nil
-        end
-        -- Disconnect window dragging listeners if active
-        if windowMouseMoveConn then pcall(windowMouseMoveConn.Disconnect, windowMouseMoveConn); windowMouseMoveConn = nil end
-        if windowMouseReleaseConn then pcall(windowMouseReleaseConn.Disconnect, windowMouseReleaseConn); windowMouseReleaseConn = nil end
-
-        -- Destroy the ScreenGui itself
-        pcall(function() screenGuiRef:Destroy() end);
-
-        -- Clear references
-        FreakyGui.Windows[screenGuiRef]=nil;
-        self.ScreenGui = nil
-        self.Frame = nil
-        self.Tabs = nil
-        self.Elements = nil
-        self.Window = nil -- Break self-reference
-
-        -- Check if the TooltipLabel belongs ONLY to this window's GUI and destroy if so
-        if TooltipLabel and TooltipLabel.Parent == screenGuiRef then
-            local otherWindowUsesTooltip = false
-            for otherGui, _ in pairs(FreakyGui.Windows) do
-                if otherGui ~= screenGuiRef and otherGui and otherGui.Parent then -- Check if any OTHER valid windows exist
-                    otherWindowUsesTooltip = true
-                    break
-                end
-            end
-            if not otherWindowUsesTooltip then
-                pcall(TooltipLabel.Destroy, TooltipLabel)
-                TooltipLabel = nil
-            end
-        end
-
-        collectgarbage("collect") -- Hint GC
-        print("FreakyGui: Window '"..windowTitle.."' destroyed.")
+        if self.ScreenGui then pcall(function() self.ScreenGui:Destroy() end) end;
+        FreakyGui.Windows[screenGui]=nil;
+        if FreakyGui.KeybindConnections[screenGui] then pcall(FreakyGui.KeybindConnections[screenGui].Disconnect, FreakyGui.KeybindConnections[screenGui]); FreakyGui.KeybindConnections[screenGui]=nil; end
+        if FreakyGui.InputCaptureConnections[screenGui] then FreakyGui.InputCaptureConnections[screenGui] = nil end
+        if FreakyGui.ActiveDropdown and FreakyGui.ActiveDropdown.Button.Parent == window.Frame then FreakyGui.ActiveDropdown = nil end -- Clear active dropdown if it belonged to this window
+        if windowMouseMoveConn then pcall(windowMouseMoveConn.Disconnect, windowMouseMoveConn) end
+        if windowMouseReleaseConn then pcall(windowMouseReleaseConn.Disconnect, windowMouseReleaseConn) end
+        -- Disconnect tooltip listeners? Not strictly necessary as they check TooltipLabel.Parent
     end
 
     closeButton.MouseButton1Click:Connect(function() window:SetVisibility(false) end)
 
-    -- Initial Setup - Trigger keybind callback to set initial state and connection
-    if keybindPickerObj and keybindPickerObj.Set then
-         pcall(keybindPickerObj.Set, window.Keybind) -- Call Set to establish the initial connection
-    end
-
-    -- Set initial visibility based on AutoShow
-    if options.AutoShow == false then window:SetVisibility(false) end
+    -- Initial Keybind Setup
+    if keybindCode and UserInputService then
+         local c=UserInputService.InputBegan:Connect(function(i,gp)
+             if not gp and i.UserInputType==Enum.UserInputType.Keyboard and i.KeyCode==window.Keybind then
+                 if not FreakyGui.InputCaptureConnections[screenGui] then
+                     if FreakyGui.Windows[screenGui] then FreakyGui.Windows[screenGui]:ToggleVisibility() end
+                 end
+             end
+         end)
+         FreakyGui.KeybindConnections[screenGui]=c
+     end
 
     return window
 end
-
---[[
--- Global Cleanup (REMOVED FOR EXECUTOR COMPATIBILITY)
--- This code caused errors in some executor environments
---]]
-
 
 -- Return the library table for use
 return FreakyGui
