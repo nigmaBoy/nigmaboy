@@ -1,7 +1,10 @@
 --[[-----------------------------------------------------------------------------------------
-    FreakyGui - Enhanced GUI Library v0.5.0 (Fixed & Refined)
+    FreakyGui - Enhanced GUI Library v0.5.0 (Fixed & Refined v2 - Executor Safe)
     By: Assistant (Based on User Request)
     Date: 2025-04-16 (Assumed Date)
+
+    Changes v2:
+    - Removed PlayerRemoving connection for better executor compatibility.
 
     Features v0.5.0:
     - Aesthetics: Subtle gradients, improved button feedback (hover/press), cleaner look.
@@ -1029,7 +1032,7 @@ function FreakyGui:CreateWindow(options)
     -- Tab Bar Scrolling Logic
     local function updateTabBarScroll()
         task.wait(); -- Allow layout to update
-        if not tabBar.Parent then return end -- Stop if destroyed
+        if not tabBar or not tabBar.Parent then return end -- Stop if destroyed
         local cw=tabLayout.AbsoluteContentSize.X;
         local vw=tabBar.AbsoluteSize.X;
         local maxS=math.max(0,cw-vw);
@@ -1049,9 +1052,9 @@ function FreakyGui:CreateWindow(options)
         rightScroll.Position=UDim2.new(1, -(TAB_AREA_PADDING + settingsWidth + rightWidth), 0, 0)
         settingsTabButton.Position=UDim2.new(1, -(TAB_AREA_PADDING + settingsWidth), 0, 0)
     end
-    leftScroll.MouseButton1Click:Connect(function() local t=TweenService:Create(tabBar,TweenInfo.new(0.2),{CanvasPosition=Vector2.new(math.max(0,tabBar.CanvasPosition.X-FreakyGui.Theme.TabScrollStep),0)});t:Play();t.Completed:Connect(updateTabBarScroll) end)
-    rightScroll.MouseButton1Click:Connect(function() local maxS=math.max(0,tabLayout.AbsoluteContentSize.X-tabBar.AbsoluteSize.X);local t=TweenService:Create(tabBar,TweenInfo.new(0.2),{CanvasPosition=Vector2.new(math.min(maxS,tabBar.CanvasPosition.X+FreakyGui.Theme.TabScrollStep),0)});t:Play();t.Completed:Connect(updateTabBarScroll) end)
-    tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() if tabBar.Parent then tabBar.CanvasSize=UDim2.new(0,tabLayout.AbsoluteContentSize.X,0,0);updateTabBarScroll() end end)
+    leftScroll.MouseButton1Click:Connect(function() if not tabBar or not tabBar.Parent then return end local t=TweenService:Create(tabBar,TweenInfo.new(0.2),{CanvasPosition=Vector2.new(math.max(0,tabBar.CanvasPosition.X-FreakyGui.Theme.TabScrollStep),0)});t:Play();t.Completed:Connect(updateTabBarScroll) end)
+    rightScroll.MouseButton1Click:Connect(function() if not tabBar or not tabBar.Parent then return end local maxS=math.max(0,tabLayout.AbsoluteContentSize.X-tabBar.AbsoluteSize.X);local t=TweenService:Create(tabBar,TweenInfo.new(0.2),{CanvasPosition=Vector2.new(math.min(maxS,tabBar.CanvasPosition.X+FreakyGui.Theme.TabScrollStep),0)});t:Play();t.Completed:Connect(updateTabBarScroll) end)
+    tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() if tabBar and tabBar.Parent then tabBar.CanvasSize=UDim2.new(0,tabLayout.AbsoluteContentSize.X,0,0);updateTabBarScroll() end end)
     windowFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateTabBarScroll);
     task.delay(0.1, updateTabBarScroll) -- Initial calculation
 
@@ -1087,14 +1090,18 @@ function FreakyGui:CreateWindow(options)
 
         self.ActiveTab=tabToActivate
         -- Ensure the active tab is visible in the scroll frame
-        if self.ActiveTab and self.ActiveTab.Button and self.TabBar then
-            self.TabBar:ScrollToInstance(self.ActiveTab.Button)
+        if self.ActiveTab and self.ActiveTab.Button and self.TabBar and self.TabBar.Parent then
+            pcall(function() self.TabBar:ScrollToInstance(self.ActiveTab.Button) end)
             task.delay(0.05, updateTabBarScroll) -- Update scroll buttons after scrolling
         end
     end
 
     -- Theme Refresh Function (Detailed Implementation)
     function window:RefreshTheme()
+        if not window or not window.Frame or not window.Frame.Parent then
+             print("FreakyGui: Cannot refresh theme, window seems destroyed.")
+             return
+        end
         print("FreakyGui: Refreshing theme...")
         local startTime = tick()
         local theme = FreakyGui.Theme -- Cache for minor performance
@@ -1115,6 +1122,7 @@ function FreakyGui:CreateWindow(options)
 
         -- Iterate through ALL relevant descendants and update based on tags/attributes
         for _, descendant in ipairs(window.Frame:GetDescendants()) do
+            if not pcall(function() local _ = descendant.Name end) then continue end -- Skip if object is invalid/destroyed mid-loop
             if not descendant:IsA("GuiObject") and not descendant:IsA("UILayout") then continue end -- Skip non-GUI/Layout
 
             local tags = CollectionService:GetTags(descendant)
@@ -1260,7 +1268,7 @@ function FreakyGui:CreateWindow(options)
         end -- End descendant loop
 
         -- Special handling for the currently active tab button after general refresh
-        if window.ActiveTab and window.ActiveTab.Button then
+        if window.ActiveTab and window.ActiveTab.Button and window.ActiveTab.Button.Parent then
              window.ActiveTab.Button.BackgroundColor3 = theme.Background
              window.ActiveTab.Button.TextColor3 = theme.TextActive
              local stroke = window.ActiveTab.Button:FindFirstChildWhichIsA("UIStroke")
@@ -1285,7 +1293,7 @@ function FreakyGui:CreateWindow(options)
     -- Settings Tab Setup (Now uses GroupBoxes)
     local settingsPage = Create("ScrollingFrame",{Name="Settings_Page",Size=UDim2.new(1,0,1,0),Position=UDim2.new(0,0,0,0),BackgroundTransparency=1,BorderSizePixel=0,Visible=false,CanvasSize=UDim2.new(0,0,0,0),ScrollBarImageColor3=FreakyGui.Theme.Primary,ScrollBarThickness=4,Parent=contentArea})
     CollectionService:AddTag(settingsPage, "FreakyGui_Theme_Primary_ScrollBar")
-    local settingsPageLayout = Create("UIListLayout",{Parent=settingsPage,SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,FreakyGui.Theme.Padding)});settingsPageLayout.Changed:Connect(function() if settingsPage.Parent then settingsPage.CanvasSize=UDim2.new(0,0,0,settingsPageLayout.AbsoluteContentSize.Y + FreakyGui.Theme.Padding*2) end end) -- Extra padding at bottom
+    local settingsPageLayout = Create("UIListLayout",{Parent=settingsPage,SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,FreakyGui.Theme.Padding)});settingsPageLayout.Changed:Connect(function() if settingsPage and settingsPage.Parent then settingsPage.CanvasSize=UDim2.new(0,0,0,settingsPageLayout.AbsoluteContentSize.Y + FreakyGui.Theme.Padding*2) end end) -- Extra padding at bottom
     Create("UIPadding", { Parent=settingsPage, PaddingTop=UDim.new(0,FreakyGui.Theme.Padding), PaddingBottom=UDim.new(0,FreakyGui.Theme.Padding), PaddingLeft=UDim.new(0,FreakyGui.Theme.Padding), PaddingRight=UDim.new(0,FreakyGui.Theme.Padding) })
 
     window.SettingsTab = {Name="Settings", Page=settingsPage, Button=settingsTabButton, Layout=settingsPageLayout, Elements={}, Window = window} -- Pass window ref
@@ -1401,7 +1409,7 @@ function FreakyGui:CreateWindow(options)
 
         local tp=Create("ScrollingFrame",{Name=tabName.."_Page",Size=UDim2.new(1,0,1,0),Position=UDim2.new(0,0,0,0),BackgroundTransparency=1,BorderSizePixel=0,Visible=false,CanvasSize=UDim2.new(0,0,0,0),ScrollBarImageColor3=FreakyGui.Theme.Primary,ScrollBarThickness=4,Parent=self.ContentArea});
         CollectionService:AddTag(tp, "FreakyGui_Theme_Primary_ScrollBar")
-        local pl=Create("UIListLayout",{Parent=tp,SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,FreakyGui.Theme.Padding)});pl.Changed:Connect(function() if tp.Parent then tp.CanvasSize=UDim2.new(0,0,0,pl.AbsoluteContentSize.Y + FreakyGui.Theme.Padding*2) end end); -- Extra padding
+        local pl=Create("UIListLayout",{Parent=tp,SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,FreakyGui.Theme.Padding)});pl.Changed:Connect(function() if tp and tp.Parent then tp.CanvasSize=UDim2.new(0,0,0,pl.AbsoluteContentSize.Y + FreakyGui.Theme.Padding*2) end end); -- Extra padding
         Create("UIPadding", { Parent=tp, PaddingTop=UDim.new(0,FreakyGui.Theme.Padding), PaddingBottom=UDim.new(0,FreakyGui.Theme.Padding), PaddingLeft=UDim.new(0,FreakyGui.Theme.Padding), PaddingRight=UDim.new(0,FreakyGui.Theme.Padding) })
 
         local tab={Name=tabName, Page=tp, Button=tb, Layout=pl, Elements={}, Window = window}; -- Pass window ref
@@ -1438,7 +1446,7 @@ function FreakyGui:CreateWindow(options)
             TweenService:Create(windowFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = targetPosOpen, BackgroundTransparency = 0}):Play()
         else
             -- Forcefully release any input capture associated with this window BEFORE animating out
-            if FreakyGui.ActiveDropdown and FreakyGui.ActiveDropdown.Button.Parent == window.Frame then
+            if FreakyGui.ActiveDropdown and FreakyGui.ActiveDropdown.Button and FreakyGui.ActiveDropdown.Button:IsDescendantOf(window.Frame) then
                 FreakyGui.ActiveDropdown:Close() -- Close dropdown if it belongs to this window
             end
             if FreakyGui.InputCaptureConnections[screenGui] then
@@ -1457,7 +1465,7 @@ function FreakyGui:CreateWindow(options)
                      elseif capturedElement:IsA("TextBox") then
                          -- Release focus if it's a textbox being captured
                          if UserInputService:GetFocusedTextBox() == capturedElement then
-                             capturedElement.ReleaseFocus(false) -- Release focus without submitting
+                             capturedElement:ReleaseFocus(false) -- Release focus without submitting
                          end
                     elseif capturedElement:IsA("Frame") and capturedElement.Name == "Nub" then
                          -- If slider nub was being dragged, stop the drag visually/logically
@@ -1472,7 +1480,7 @@ function FreakyGui:CreateWindow(options)
             -- Start exit animation
              TweenService:Create(windowFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = targetPosClosed, BackgroundTransparency = 1}):Play()
              task.delay(0.2, function()
-                 if not self.IsVisible and windowFrame.Parent then -- Check if it wasn't reopened during animation AND still exists
+                 if not self.IsVisible and windowFrame and windowFrame.Parent then -- Check if it wasn't reopened during animation AND still exists
                      windowFrame.Visible=false
                      self.ScreenGui.Enabled=false
                      -- Reset properties fully after hiding for clean reopen state
@@ -1486,6 +1494,8 @@ function FreakyGui:CreateWindow(options)
     function window:Destroy()
         local screenGuiRef = self.ScreenGui -- Store reference
         if not screenGuiRef then return end -- Already destroyed
+
+        print("FreakyGui: Destroying Window '"..windowTitle.."'...")
 
         -- Disconnect keybind listener associated with this window
         if FreakyGui.KeybindConnections[screenGuiRef] then
@@ -1513,10 +1523,26 @@ function FreakyGui:CreateWindow(options)
         self.Frame = nil
         self.Tabs = nil
         self.Elements = nil
-        -- TooltipLabel is singleton per ScreenGui, will be destroyed with it if this is the last window using it.
+        self.Window = nil -- Break self-reference
+
+        -- Check if the TooltipLabel belongs ONLY to this window's GUI and destroy if so
+        if TooltipLabel and TooltipLabel.Parent == screenGuiRef then
+            local otherWindowUsesTooltip = false
+            for otherGui, _ in pairs(FreakyGui.Windows) do
+                if otherGui ~= screenGuiRef then -- Check if any OTHER windows exist
+                    otherWindowUsesTooltip = true
+                    break
+                end
+            end
+            if not otherWindowUsesTooltip then
+                pcall(TooltipLabel.Destroy, TooltipLabel)
+                TooltipLabel = nil
+            end
+        end
 
         -- Attempt to clear self-references for GC
-        for k in pairs(self) do self[k] = nil end
+        -- for k in pairs(self) do self[k] = nil end -- This might error if self is already partly nil
+        collectgarbage("collect") -- Hint GC
         print("FreakyGui: Window '"..windowTitle.."' destroyed.")
     end
 
@@ -1533,16 +1559,381 @@ function FreakyGui:CreateWindow(options)
     return window
 end
 
--- Global Cleanup (optional, if script is destroyed)
+--[[
+-- Global Cleanup (REMOVED FOR EXECUTOR COMPATIBILITY)
 game:GetService("Players").LocalPlayer.PlayerRemoving:Connect(function()
-    for _, window in pairs(FreakyGui.Windows) do
-        if window and window.Destroy then
-            pcall(window.Destroy, window)
-        end
-    end
-    if TooltipLabel then pcall(TooltipLabel.Destroy, TooltipLabel); TooltipLabel = nil end
+    -- This code caused errors in some executor environments
 end)
+--]]
 
 
 -- Return the library table for use
 return FreakyGui
+
+```
+
+**Executor Example Script (Unchanged):**
+
+The example script itself doesn't need to change, as it only loads and uses the library. It should now work correctly because the library it loads has been fixed.
+
+```lua
+--[[
+    FreakyGui Example Script for Executors (v2)
+
+    Instructions:
+    1. Ensure the FreakyGui library loaded below (or via URL) is the UPDATED version (without PlayerRemoving).
+    2. Copy this entire script.
+    3. Paste it into your Roblox script executor.
+    4. Execute the script while in a game.
+    5. The GUI should appear (or use the keybind PageUp to toggle).
+]]
+
+print("FreakyGui Executor Example: Starting...")
+
+-- 1. Load the Library from GitHub (Standard Executor Method)
+local LibraryURL = "https://raw.githubusercontent.com/nigmaBoy/nigmaboy/refs/heads/main/FreakyGui" -- Make sure this URL points to the FIXED library code if hosting it yourself.
+local FreakyGui = nil
+local success, err = pcall(function()
+    local rawLib = game:HttpGet(LibraryURL, true) -- Use 'true' to bypass cache if needed
+    if rawLib then
+        FreakyGui = loadstring(rawLib)()
+        if not FreakyGui then -- loadstring might return nil if the library script itself errors internally
+            error("Library script executed but returned nil. Check library code for errors.")
+        end
+    else
+        error("Failed to download library content.")
+    end
+end)
+
+if not success or not FreakyGui then
+    warn("------------------------------------------------------")
+    warn("FreakyGui Example: FAILED TO LOAD LIBRARY!")
+    warn("URL: " .. LibraryURL)
+    warn("Error: ", err)
+    warn("Possible Reasons:")
+    warn("- Network issue / Roblox down")
+    warn("- GitHub URL is incorrect or file moved/deleted (Ensure it has the corrected code)")
+    warn("- Executor lacks HttpGet capability or permissions")
+    warn("- Internal error within the library code itself during load")
+    warn("------------------------------------------------------")
+    return -- Stop script execution if library failed
+end
+
+print("FreakyGui Executor Example: Library Loaded Successfully!")
+
+-- Short delay to ensure services are ready after potential loadstring execution lag
+task.wait(0.2)
+
+-- 2. Create the Main Window
+-- Check if a window with the same name already exists (optional, good practice for re-execution)
+local windowTitle = "FreakyGui Showcase"
+local existingGui = game:GetService("CoreGui"):FindFirstChild("FreakyGui_" .. windowTitle:gsub("%s+", ""))
+if existingGui then
+    warn("FreakyGui Example: Found existing GUI. Destroying it before creating a new one.")
+    -- Attempt to find the window object in the library's tracker and destroy it properly
+    local windowObj = FreakyGui.Windows[existingGui]
+    if windowObj and windowObj.Destroy then
+        pcall(windowObj.Destroy, windowObj)
+    else
+        -- Fallback: just destroy the ScreenGui
+        existingGui:Destroy()
+    end
+    task.wait(0.1) -- Give it a moment to clean up
+end
+
+local MyWindow = FreakyGui:CreateWindow({
+    Title = windowTitle,
+    Keybind = Enum.KeyCode.PageUp, -- Keybind to toggle the GUI
+    AutoShow = true,              -- Show the window immediately on creation
+    Width = 600,                  -- Custom width
+    Height = 500                 -- Custom height
+})
+
+if not MyWindow then
+    warn("FreakyGui Example: Failed to create window after loading library!")
+    return
+end
+
+print("FreakyGui Example: Window Created.")
+
+-- 3. Add Tabs
+local tabBasics = MyWindow:AddTab("Basic Elements")
+local tabContainers = MyWindow:AddTab("Containers")
+local tabAdvanced = MyWindow:AddTab("Advanced")
+local tabTheme = MyWindow:AddTab("Theme & Control")
+-- The "Settings" tab is automatically added by the library
+
+print("FreakyGui Example: Tabs Added.")
+
+-- Storage for element objects to demonstrate Get/Set later
+local elements = {}
+
+-- ==========================================================
+-- 4. Populate "Basic Elements" Tab
+-- ==========================================================
+do
+    tabBasics:AddLabel({ Text = "Simple controls demo:", TextSize = 16, Align = Enum.TextXAlignment.Center })
+    tabBasics:AddSeparator()
+
+    elements.demoButton = tabBasics:AddButton({
+        Text = "Executor Button",
+        Tooltip = "This button prints a message to the dev console.",
+        Callback = function()
+            print("FreakyGui Example: Basic Button Clicked!")
+            if elements.demoLabel then elements.demoLabel:Set("Button Clicked: " .. os.date("%X")) end
+        end
+    })
+
+    elements.demoToggle = tabBasics:AddToggle({
+        Text = "Enable Feature X",
+        Default = true,
+        Tooltip = "Toggles a fictional feature state.",
+        Callback = function(state)
+            print("FreakyGui Example: Toggle state changed to:", state)
+        end
+    })
+
+    elements.demoSlider = tabBasics:AddSlider({
+        Text = "Intensity Slider",
+        Min = 0,
+        Max = 100,
+        Default = 50,
+        Increment = 5, -- Snap to increments of 5
+        Suffix = "%",
+        Tooltip = "Adjust the intensity level (0-100).",
+        Callback = function(value)
+            print("FreakyGui Example: Slider value changed to:", value)
+        end
+    })
+
+    elements.demoLabel = tabBasics:AddLabel({
+        Text = "This is a multi-line label demonstrating text wrapping and programmatic updates.",
+        Tooltip = "Just a standard label.",
+    })
+
+    tabBasics:AddSeparatorWithText({ Text = "Text Input Section" })
+
+    elements.demoTextbox = tabBasics:AddTextbox({
+        Text = "Executor Input",
+        Placeholder = "Enter text and press Enter...",
+        ClearOnFocus = true,
+        Tooltip = "Type something and press Enter to submit.",
+        Callback = function(text)
+            print("FreakyGui Example: Textbox submitted:", text)
+            if elements.demoLabel then elements.demoLabel:Set("Textbox Sent: '"..text.."'") end
+        end
+    })
+     elements.demoTextboxNoClear = tabBasics:AddTextbox({
+        Text = "Persistent Input",
+        Placeholder = "Text stays on focus...",
+        ClearOnFocus = false,
+        Tooltip = "This textbox retains text when focused.",
+        Callback = function(text)
+            print("FreakyGui Example: Persistent Textbox submitted:", text)
+        end
+    })
+end
+
+-- ==========================================================
+-- 5. Populate "Containers" Tab
+-- ==========================================================
+do
+    tabContainers:AddLabel({Text = "Group Boxes organize elements."})
+    tabContainers:AddSeparator()
+
+    -- Full Width GroupBox
+    local fullGroup = tabContainers:AddGroupBox({ Title = "Full Width Group" })
+    fullGroup:AddLabel({ Text = "Elements inside a full-width group." })
+    fullGroup:AddButton({ Text = "Action 1", Callback = function() print("Action 1 clicked") end })
+    fullGroup:AddToggle({ Text = "Sub-Option Toggle" })
+
+    tabContainers:AddSeparatorWithText({ Text = "50/50 Split Layout" })
+
+    -- Left GroupBox
+    local leftGroup = tabContainers:AddGroupBox({
+        Title = "Left Group (50%)",
+        Side = "Left",
+        Tooltip = "This group takes the left half."
+    })
+    leftGroup:AddLabel({ Text = "Content in left box."})
+    leftGroup:AddSlider({ Text = "Left Slider"})
+    leftGroup:AddButton({Text = "Left Btn"})
+
+    -- Right GroupBox
+    local rightGroup = tabContainers:AddGroupBox({
+        Title = "Right Group (50%)",
+        Side = "Right",
+        Tooltip = "This group takes the right half."
+    })
+    rightGroup:AddLabel({ Text = "Content in right box."})
+    rightGroup:AddTextbox({ Text = "Right Input"})
+    rightGroup:AddButton({ Text = "Right Btn"})
+
+    -- Add another full width below split groups
+     tabContainers:AddSeparator()
+     local anotherGroup = tabContainers:AddGroupBox({ Title = "Another Full Group Below Split" })
+     anotherGroup:AddLabel({ Text = "Elements stack vertically."})
+     anotherGroup:AddButton({Text = "Button Here"})
+end
+
+-- ==========================================================
+-- 6. Populate "Advanced" Tab
+-- ==========================================================
+do
+    tabAdvanced:AddLabel({ Text = "Advanced Elements Showcase:", TextSize = 16 })
+    tabAdvanced:AddSeparator()
+
+    elements.demoDropdown = tabAdvanced:AddDropdown({
+        Text = "Select Item",
+        Items = { "Option A", "Option B", "Option C", "Another String", 12345, true }, -- Mix of types
+        Default = "Option B",
+        Tooltip = "Choose an option from the list.",
+        Callback = function(selectedItem)
+            print("FreakyGui Example: Dropdown selected:", selectedItem, "- Type:", type(selectedItem))
+        end
+    })
+
+    local dropdownControlGroup = tabAdvanced:AddGroupBox({ Title = "Dropdown Control" })
+    dropdownControlGroup:AddButton({ Text = "Add Random Item", Callback = function()
+        if elements.demoDropdown then
+            local newItem = "Rand_"..math.random(100, 999)
+            elements.demoDropdown:AddItem(newItem)
+            print("Added to Dropdown:", newItem)
+        end
+    end})
+     dropdownControlGroup:AddButton({ Text = "Remove 'Option A'", Callback = function()
+        if elements.demoDropdown then elements.demoDropdown:RemoveItem("Option A") print("Attempted to remove 'Option A'") end
+    end})
+     dropdownControlGroup:AddButton({ Text = "Reset Items", Callback = function()
+        if elements.demoDropdown then elements.demoDropdown:SetItems({"Reset 1", "Reset 2", "Reset 3"}) print("Reset dropdown items") end
+    end})
+
+
+    tabAdvanced:AddSeparatorWithText({ Text = "Color Selection" })
+
+    elements.demoColorPicker = tabAdvanced:AddColorPickerElement({
+        Text = "Choose Accent Color",
+        Default = Color3.fromRGB(255, 0, 255), -- Default Magenta
+        Tooltip = "Pick a color using RGB sliders.",
+        Callback = function(color)
+            print("FreakyGui Example: ColorPicker changed:", color)
+            -- Example: Change the demo button color instantly
+            if elements.demoButton then
+                pcall(function() elements.demoButton.BackgroundColor3 = color end)
+            end
+        end
+    })
+
+     tabAdvanced:AddSeparatorWithText({ Text = "Keybind Selection" })
+
+     elements.demoKeybind = tabAdvanced:AddKeybindPicker({
+         Text = "Custom Action Key",
+         Default = Enum.KeyCode.F,
+         Tooltip = "Set a keybind for a custom action.",
+         Callback = function(key)
+             print("FreakyGui Example: Custom keybind set to:", key)
+             -- You could store this key and listen for it elsewhere in your script
+         end
+     })
+end
+
+-- ==========================================================
+-- 7. Populate "Theme & Control" Tab
+-- ==========================================================
+do
+    tabTheme:AddLabel({ Text = "Programmatic Control & Theming:", TextSize = 16 })
+    tabTheme:AddSeparator()
+
+    -- Get/Set examples
+    local controlGroup = tabTheme:AddGroupBox({ Title = "Element Control Examples" })
+    controlGroup:AddButton({ Text = "Get Toggle State", Callback = function()
+        if elements.demoToggle then print("Toggle State:", elements.demoToggle:Get()) else print("Element not found") end
+    end})
+    controlGroup:AddButton({ Text = "Set Toggle OFF", Callback = function()
+        if elements.demoToggle then elements.demoToggle:Set(false) else print("Element not found") end
+    end})
+    controlGroup:AddButton({ Text = "Get Slider Value", Callback = function()
+        if elements.demoSlider then print("Slider Value:", elements.demoSlider:Get()) else print("Element not found") end
+    end})
+    controlGroup:AddButton({ Text = "Set Slider to 25", Callback = function()
+        if elements.demoSlider then elements.demoSlider:Set(25) else print("Element not found") end
+    end})
+     controlGroup:AddButton({ Text = "Set Dropdown to 'Option C'", Callback = function()
+        if elements.demoDropdown then elements.demoDropdown:Set("Option C") else print("Element not found") end
+    end})
+     controlGroup:AddButton({ Text = "Set ColorPicker to Blue", Callback = function()
+        if elements.demoColorPicker then elements.demoColorPicker:Set(Color3.fromRGB(0, 100, 255)) else print("Element not found") end
+    end})
+     controlGroup:AddButton({ Text = "Update Label Text", Callback = function()
+        if elements.demoLabel then elements.demoLabel:Set("Label updated: " .. os.date("%X")) else print("Element not found") end
+    end})
+
+    -- Theme Control
+    tabTheme:AddSeparatorWithText({ Text = "Theme Control" })
+    tabTheme:AddLabel({ Text = "Change theme preset & refresh."})
+    tabTheme:AddLabel({ Text = "(Use Settings tab for per-color editing)"})
+
+    -- Define a light theme preset (can be expanded)
+    local lightThemePreset = {
+        Background = Color3.fromRGB(235, 235, 240), Primary = Color3.fromRGB(0, 120, 215),
+        Secondary = Color3.fromRGB(210, 210, 220), Header = Color3.fromRGB(220, 220, 225),
+        Outline = Color3.fromRGB(150, 150, 160), Text = Color3.fromRGB(10, 10, 15),
+        TextDisabled = Color3.fromRGB(100, 100, 110), TextActive = Color3.fromRGB(255, 255, 255),
+        ButtonHover = Color3.fromRGB(20, 140, 235), ButtonPress = Color3.fromRGB(0, 100, 195),
+        GroupBoxHeader = Color3.fromRGB(215, 215, 220), DropdownBackground = Color3.fromRGB(225, 225, 230),
+        DropdownHover = Color3.fromRGB(190, 190, 200), TooltipBackground = Color3.fromRGB(50, 50, 55),
+        TooltipText = Color3.fromRGB(230, 230, 235), Background_Gradient_Enabled = false, Header_Gradient_Enabled = false,
+    }
+    local darkThemePreset = table.clone(FreakyGui.Theme) -- Store original dark theme at script start
+
+    tabTheme:AddButton({ Text = "Apply Light Theme Preset", Callback = function()
+        if not MyWindow or not MyWindow.Frame then warn("Window not found!") return end
+        print("Applying Light Theme...")
+        for key, value in pairs(lightThemePreset) do
+            -- Only apply keys that exist in the preset to avoid errors if preset is incomplete
+            if FreakyGui.Theme[key] ~= nil then
+                 FreakyGui.Theme[key] = value
+            end
+        end
+        MyWindow:RefreshTheme()
+    end})
+
+    tabTheme:AddButton({ Text = "Apply Dark Theme Preset", Callback = function()
+        if not MyWindow or not MyWindow.Frame then warn("Window not found!") return end
+        print("Applying Dark Theme...")
+        for key, value in pairs(darkThemePreset) do
+             FreakyGui.Theme[key] = value
+        end
+        MyWindow:RefreshTheme()
+    end})
+
+    -- Window Control
+    tabTheme:AddSeparatorWithText({ Text = "Window Control" })
+    tabTheme:AddButton({ Text = "Hide Window (Use Keybind)", Tooltip = "Hides the window. Use "..tostring(MyWindow.Keybind).." to reopen.", Callback = function()
+         if MyWindow and MyWindow.Frame then MyWindow:SetVisibility(false) end
+    end})
+    tabTheme:AddButton({ Text = "Show Window", Callback = function()
+         if MyWindow and MyWindow.Frame then MyWindow:SetVisibility(true) end
+    end})
+    tabTheme:AddButton({ Text = "DESTROY GUI", Tooltip = "Permanently removes this GUI instance.", Callback = function()
+        if MyWindow and MyWindow.Destroy then
+            MyWindow:Destroy()
+            MyWindow = nil -- Clear the reference, important for re-execution
+            elements = {} -- Clear element references
+            print("FreakyGui Example: Window Destroyed.")
+             warn("FreakyGui Example: GUI Destroyed. Re-execute the script to create it again.")
+        else
+             warn("FreakyGui Example: Window already destroyed or reference lost.")
+        end
+    end})
+
+end
+
+print("------------------------------------------------------")
+print("FreakyGui Executor Example: Setup Complete.")
+if MyWindow and MyWindow.Keybind then -- Check if window exists before accessing keybind
+    print("Keybind to toggle: " .. tostring(MyWindow.Keybind))
+else
+    print("Window was not created or already destroyed.")
+end
+print("------------------------------------------------------")
