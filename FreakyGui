@@ -1386,7 +1386,7 @@ function FreakyGui:CreateWindow(options)
                  FreakyGui.Theme[themeKey] = newColor
                  -- Minimal direct update for instant feedback where essential, RefreshTheme handles the rest
                  if themeKey == "Primary" then settingsPage.ScrollBarImageColor3 = newColor end
-                 if themeKey == "Background" then windowFrame.BackgroundColor3 = newColor end -- Update main BG instantly
+                 if themeKey == "Background" then if windowFrame and windowFrame.Parent then windowFrame.BackgroundColor3 = newColor end end -- Update main BG instantly
                  -- Maybe consider a throttled RefreshTheme call here if performance allows?
                  -- For now, rely on manual Refresh button for full update.
              end
@@ -1432,6 +1432,7 @@ function FreakyGui:CreateWindow(options)
     function window:ToggleVisibility() self:SetVisibility(not self.IsVisible) end
 
     function window:SetVisibility(v)
+        if not windowFrame or not windowFrame.Parent then return end -- Don't run if destroyed
         if self.IsVisible == v then return end -- No change needed
         self.IsVisible=v;
         local currentPos = windowFrame.Position
@@ -1456,12 +1457,32 @@ function FreakyGui:CreateWindow(options)
                      -- Attempt to visually reset specific elements if needed (e.g., Keybind Picker)
                      if capturedElement.Name == "SetBtn" and capturedElement.Parent and capturedElement.Parent.Name:find("_KeyFrm") then
                          local keybindObj = nil
-                         for _, element in pairs(self.SettingsTab.Elements) do -- Check settings tab primarily
-                             if typeof(element) == "table" and element.Button == capturedElement then
-                                 keybindObj = element; break;
+                         -- Search diligently for the keybind object
+                         for tabName, tabData in pairs(self.Tabs) do
+                             if tabData.Elements then
+                                for elementName, elementData in pairs(tabData.Elements) do
+                                     if typeof(elementData) == "table" and elementData.Button == capturedElement then
+                                         keybindObj = elementData; break;
+                                     end
+                                end
+                             end
+                             if keybindObj then break end
+                             if tabData.Elements and tabData.Elements.Frame then -- Check inside group boxes too
+                                 for _, elementData in pairs(tabData.Elements.Frame:GetChildren()) do
+                                     if elementData:IsA("Frame") and elementData.Name:find("_KeyFrm") then
+                                         local btn = elementData:FindFirstChild("SetBtn")
+                                         if btn == capturedElement then
+                                             -- Find associated object (this is harder, requires better tracking or assumptions)
+                                             -- For now, just try resetting text if possible
+                                             pcall(function() capturedElement.Text = "Set: " .. tostring(capturedElement:GetAttribute("CurrentKey") or "?") end) -- Placeholder reset
+                                             break
+                                         end
+                                     end
+                                 end
                              end
                          end
-                         if keybindObj and keybindObj.Set then pcall(keybindObj.Set, keybindObj:Get()) end -- Reset text/state
+                         if keybindObj and keybindObj.Set then pcall(keybindObj.Set, keybindObj:Get()) end -- Reset text/state if found
+
                      elseif capturedElement:IsA("TextBox") then
                          -- Release focus if it's a textbox being captured
                          if UserInputService:GetFocusedTextBox() == capturedElement then
@@ -1469,9 +1490,7 @@ function FreakyGui:CreateWindow(options)
                          end
                     elseif capturedElement:IsA("Frame") and capturedElement.Name == "Nub" then
                          -- If slider nub was being dragged, stop the drag visually/logically
-                         -- This is tricky, ideally handled by the InputEnded signal, but as a fallback:
-                         local sliderObj = nil -- Find the associated slider object (difficult without direct reference)
-                         -- Best effort: just release input. The visual state might be slightly off until next interaction.
+                         -- Best effort: just release input. Visual state might be slightly off until next interaction.
                     end
                 end
                  ReleaseInput(window, capturedElement) -- Release capture
@@ -1482,7 +1501,7 @@ function FreakyGui:CreateWindow(options)
              task.delay(0.2, function()
                  if not self.IsVisible and windowFrame and windowFrame.Parent then -- Check if it wasn't reopened during animation AND still exists
                      windowFrame.Visible=false
-                     self.ScreenGui.Enabled=false
+                     if self.ScreenGui then self.ScreenGui.Enabled=false end -- Check ScreenGui too
                      -- Reset properties fully after hiding for clean reopen state
                      windowFrame.Position = targetPosOpen -- Reset position
                      windowFrame.BackgroundTransparency = 0
@@ -1507,7 +1526,7 @@ function FreakyGui:CreateWindow(options)
             FreakyGui.InputCaptureConnections[screenGuiRef] = nil
         end
         -- Clear active dropdown if it belonged to this window
-        if FreakyGui.ActiveDropdown and FreakyGui.ActiveDropdown.Button and FreakyGui.ActiveDropdown.Button:IsDescendantOf(screenGuiRef) then
+        if FreakyGui.ActiveDropdown and FreakyGui.ActiveDropdown.Button and pcall(function() return FreakyGui.ActiveDropdown.Button:IsDescendantOf(screenGuiRef) end) then
             FreakyGui.ActiveDropdown = nil
         end
         -- Disconnect window dragging listeners if active
@@ -1529,7 +1548,7 @@ function FreakyGui:CreateWindow(options)
         if TooltipLabel and TooltipLabel.Parent == screenGuiRef then
             local otherWindowUsesTooltip = false
             for otherGui, _ in pairs(FreakyGui.Windows) do
-                if otherGui ~= screenGuiRef then -- Check if any OTHER windows exist
+                if otherGui ~= screenGuiRef and otherGui and otherGui.Parent then -- Check if any OTHER valid windows exist
                     otherWindowUsesTooltip = true
                     break
                 end
@@ -1540,8 +1559,6 @@ function FreakyGui:CreateWindow(options)
             end
         end
 
-        -- Attempt to clear self-references for GC
-        -- for k in pairs(self) do self[k] = nil end -- This might error if self is already partly nil
         collectgarbage("collect") -- Hint GC
         print("FreakyGui: Window '"..windowTitle.."' destroyed.")
     end
@@ -1561,379 +1578,9 @@ end
 
 --[[
 -- Global Cleanup (REMOVED FOR EXECUTOR COMPATIBILITY)
-game:GetService("Players").LocalPlayer.PlayerRemoving:Connect(function()
-    -- This code caused errors in some executor environments
-end)
+-- This code caused errors in some executor environments
 --]]
 
 
 -- Return the library table for use
 return FreakyGui
-
-```
-
-**Executor Example Script (Unchanged):**
-
-The example script itself doesn't need to change, as it only loads and uses the library. It should now work correctly because the library it loads has been fixed.
-
-```lua
---[[
-    FreakyGui Example Script for Executors (v2)
-
-    Instructions:
-    1. Ensure the FreakyGui library loaded below (or via URL) is the UPDATED version (without PlayerRemoving).
-    2. Copy this entire script.
-    3. Paste it into your Roblox script executor.
-    4. Execute the script while in a game.
-    5. The GUI should appear (or use the keybind PageUp to toggle).
-]]
-
-print("FreakyGui Executor Example: Starting...")
-
--- 1. Load the Library from GitHub (Standard Executor Method)
-local LibraryURL = "https://raw.githubusercontent.com/nigmaBoy/nigmaboy/refs/heads/main/FreakyGui" -- Make sure this URL points to the FIXED library code if hosting it yourself.
-local FreakyGui = nil
-local success, err = pcall(function()
-    local rawLib = game:HttpGet(LibraryURL, true) -- Use 'true' to bypass cache if needed
-    if rawLib then
-        FreakyGui = loadstring(rawLib)()
-        if not FreakyGui then -- loadstring might return nil if the library script itself errors internally
-            error("Library script executed but returned nil. Check library code for errors.")
-        end
-    else
-        error("Failed to download library content.")
-    end
-end)
-
-if not success or not FreakyGui then
-    warn("------------------------------------------------------")
-    warn("FreakyGui Example: FAILED TO LOAD LIBRARY!")
-    warn("URL: " .. LibraryURL)
-    warn("Error: ", err)
-    warn("Possible Reasons:")
-    warn("- Network issue / Roblox down")
-    warn("- GitHub URL is incorrect or file moved/deleted (Ensure it has the corrected code)")
-    warn("- Executor lacks HttpGet capability or permissions")
-    warn("- Internal error within the library code itself during load")
-    warn("------------------------------------------------------")
-    return -- Stop script execution if library failed
-end
-
-print("FreakyGui Executor Example: Library Loaded Successfully!")
-
--- Short delay to ensure services are ready after potential loadstring execution lag
-task.wait(0.2)
-
--- 2. Create the Main Window
--- Check if a window with the same name already exists (optional, good practice for re-execution)
-local windowTitle = "FreakyGui Showcase"
-local existingGui = game:GetService("CoreGui"):FindFirstChild("FreakyGui_" .. windowTitle:gsub("%s+", ""))
-if existingGui then
-    warn("FreakyGui Example: Found existing GUI. Destroying it before creating a new one.")
-    -- Attempt to find the window object in the library's tracker and destroy it properly
-    local windowObj = FreakyGui.Windows[existingGui]
-    if windowObj and windowObj.Destroy then
-        pcall(windowObj.Destroy, windowObj)
-    else
-        -- Fallback: just destroy the ScreenGui
-        existingGui:Destroy()
-    end
-    task.wait(0.1) -- Give it a moment to clean up
-end
-
-local MyWindow = FreakyGui:CreateWindow({
-    Title = windowTitle,
-    Keybind = Enum.KeyCode.PageUp, -- Keybind to toggle the GUI
-    AutoShow = true,              -- Show the window immediately on creation
-    Width = 600,                  -- Custom width
-    Height = 500                 -- Custom height
-})
-
-if not MyWindow then
-    warn("FreakyGui Example: Failed to create window after loading library!")
-    return
-end
-
-print("FreakyGui Example: Window Created.")
-
--- 3. Add Tabs
-local tabBasics = MyWindow:AddTab("Basic Elements")
-local tabContainers = MyWindow:AddTab("Containers")
-local tabAdvanced = MyWindow:AddTab("Advanced")
-local tabTheme = MyWindow:AddTab("Theme & Control")
--- The "Settings" tab is automatically added by the library
-
-print("FreakyGui Example: Tabs Added.")
-
--- Storage for element objects to demonstrate Get/Set later
-local elements = {}
-
--- ==========================================================
--- 4. Populate "Basic Elements" Tab
--- ==========================================================
-do
-    tabBasics:AddLabel({ Text = "Simple controls demo:", TextSize = 16, Align = Enum.TextXAlignment.Center })
-    tabBasics:AddSeparator()
-
-    elements.demoButton = tabBasics:AddButton({
-        Text = "Executor Button",
-        Tooltip = "This button prints a message to the dev console.",
-        Callback = function()
-            print("FreakyGui Example: Basic Button Clicked!")
-            if elements.demoLabel then elements.demoLabel:Set("Button Clicked: " .. os.date("%X")) end
-        end
-    })
-
-    elements.demoToggle = tabBasics:AddToggle({
-        Text = "Enable Feature X",
-        Default = true,
-        Tooltip = "Toggles a fictional feature state.",
-        Callback = function(state)
-            print("FreakyGui Example: Toggle state changed to:", state)
-        end
-    })
-
-    elements.demoSlider = tabBasics:AddSlider({
-        Text = "Intensity Slider",
-        Min = 0,
-        Max = 100,
-        Default = 50,
-        Increment = 5, -- Snap to increments of 5
-        Suffix = "%",
-        Tooltip = "Adjust the intensity level (0-100).",
-        Callback = function(value)
-            print("FreakyGui Example: Slider value changed to:", value)
-        end
-    })
-
-    elements.demoLabel = tabBasics:AddLabel({
-        Text = "This is a multi-line label demonstrating text wrapping and programmatic updates.",
-        Tooltip = "Just a standard label.",
-    })
-
-    tabBasics:AddSeparatorWithText({ Text = "Text Input Section" })
-
-    elements.demoTextbox = tabBasics:AddTextbox({
-        Text = "Executor Input",
-        Placeholder = "Enter text and press Enter...",
-        ClearOnFocus = true,
-        Tooltip = "Type something and press Enter to submit.",
-        Callback = function(text)
-            print("FreakyGui Example: Textbox submitted:", text)
-            if elements.demoLabel then elements.demoLabel:Set("Textbox Sent: '"..text.."'") end
-        end
-    })
-     elements.demoTextboxNoClear = tabBasics:AddTextbox({
-        Text = "Persistent Input",
-        Placeholder = "Text stays on focus...",
-        ClearOnFocus = false,
-        Tooltip = "This textbox retains text when focused.",
-        Callback = function(text)
-            print("FreakyGui Example: Persistent Textbox submitted:", text)
-        end
-    })
-end
-
--- ==========================================================
--- 5. Populate "Containers" Tab
--- ==========================================================
-do
-    tabContainers:AddLabel({Text = "Group Boxes organize elements."})
-    tabContainers:AddSeparator()
-
-    -- Full Width GroupBox
-    local fullGroup = tabContainers:AddGroupBox({ Title = "Full Width Group" })
-    fullGroup:AddLabel({ Text = "Elements inside a full-width group." })
-    fullGroup:AddButton({ Text = "Action 1", Callback = function() print("Action 1 clicked") end })
-    fullGroup:AddToggle({ Text = "Sub-Option Toggle" })
-
-    tabContainers:AddSeparatorWithText({ Text = "50/50 Split Layout" })
-
-    -- Left GroupBox
-    local leftGroup = tabContainers:AddGroupBox({
-        Title = "Left Group (50%)",
-        Side = "Left",
-        Tooltip = "This group takes the left half."
-    })
-    leftGroup:AddLabel({ Text = "Content in left box."})
-    leftGroup:AddSlider({ Text = "Left Slider"})
-    leftGroup:AddButton({Text = "Left Btn"})
-
-    -- Right GroupBox
-    local rightGroup = tabContainers:AddGroupBox({
-        Title = "Right Group (50%)",
-        Side = "Right",
-        Tooltip = "This group takes the right half."
-    })
-    rightGroup:AddLabel({ Text = "Content in right box."})
-    rightGroup:AddTextbox({ Text = "Right Input"})
-    rightGroup:AddButton({ Text = "Right Btn"})
-
-    -- Add another full width below split groups
-     tabContainers:AddSeparator()
-     local anotherGroup = tabContainers:AddGroupBox({ Title = "Another Full Group Below Split" })
-     anotherGroup:AddLabel({ Text = "Elements stack vertically."})
-     anotherGroup:AddButton({Text = "Button Here"})
-end
-
--- ==========================================================
--- 6. Populate "Advanced" Tab
--- ==========================================================
-do
-    tabAdvanced:AddLabel({ Text = "Advanced Elements Showcase:", TextSize = 16 })
-    tabAdvanced:AddSeparator()
-
-    elements.demoDropdown = tabAdvanced:AddDropdown({
-        Text = "Select Item",
-        Items = { "Option A", "Option B", "Option C", "Another String", 12345, true }, -- Mix of types
-        Default = "Option B",
-        Tooltip = "Choose an option from the list.",
-        Callback = function(selectedItem)
-            print("FreakyGui Example: Dropdown selected:", selectedItem, "- Type:", type(selectedItem))
-        end
-    })
-
-    local dropdownControlGroup = tabAdvanced:AddGroupBox({ Title = "Dropdown Control" })
-    dropdownControlGroup:AddButton({ Text = "Add Random Item", Callback = function()
-        if elements.demoDropdown then
-            local newItem = "Rand_"..math.random(100, 999)
-            elements.demoDropdown:AddItem(newItem)
-            print("Added to Dropdown:", newItem)
-        end
-    end})
-     dropdownControlGroup:AddButton({ Text = "Remove 'Option A'", Callback = function()
-        if elements.demoDropdown then elements.demoDropdown:RemoveItem("Option A") print("Attempted to remove 'Option A'") end
-    end})
-     dropdownControlGroup:AddButton({ Text = "Reset Items", Callback = function()
-        if elements.demoDropdown then elements.demoDropdown:SetItems({"Reset 1", "Reset 2", "Reset 3"}) print("Reset dropdown items") end
-    end})
-
-
-    tabAdvanced:AddSeparatorWithText({ Text = "Color Selection" })
-
-    elements.demoColorPicker = tabAdvanced:AddColorPickerElement({
-        Text = "Choose Accent Color",
-        Default = Color3.fromRGB(255, 0, 255), -- Default Magenta
-        Tooltip = "Pick a color using RGB sliders.",
-        Callback = function(color)
-            print("FreakyGui Example: ColorPicker changed:", color)
-            -- Example: Change the demo button color instantly
-            if elements.demoButton then
-                pcall(function() elements.demoButton.BackgroundColor3 = color end)
-            end
-        end
-    })
-
-     tabAdvanced:AddSeparatorWithText({ Text = "Keybind Selection" })
-
-     elements.demoKeybind = tabAdvanced:AddKeybindPicker({
-         Text = "Custom Action Key",
-         Default = Enum.KeyCode.F,
-         Tooltip = "Set a keybind for a custom action.",
-         Callback = function(key)
-             print("FreakyGui Example: Custom keybind set to:", key)
-             -- You could store this key and listen for it elsewhere in your script
-         end
-     })
-end
-
--- ==========================================================
--- 7. Populate "Theme & Control" Tab
--- ==========================================================
-do
-    tabTheme:AddLabel({ Text = "Programmatic Control & Theming:", TextSize = 16 })
-    tabTheme:AddSeparator()
-
-    -- Get/Set examples
-    local controlGroup = tabTheme:AddGroupBox({ Title = "Element Control Examples" })
-    controlGroup:AddButton({ Text = "Get Toggle State", Callback = function()
-        if elements.demoToggle then print("Toggle State:", elements.demoToggle:Get()) else print("Element not found") end
-    end})
-    controlGroup:AddButton({ Text = "Set Toggle OFF", Callback = function()
-        if elements.demoToggle then elements.demoToggle:Set(false) else print("Element not found") end
-    end})
-    controlGroup:AddButton({ Text = "Get Slider Value", Callback = function()
-        if elements.demoSlider then print("Slider Value:", elements.demoSlider:Get()) else print("Element not found") end
-    end})
-    controlGroup:AddButton({ Text = "Set Slider to 25", Callback = function()
-        if elements.demoSlider then elements.demoSlider:Set(25) else print("Element not found") end
-    end})
-     controlGroup:AddButton({ Text = "Set Dropdown to 'Option C'", Callback = function()
-        if elements.demoDropdown then elements.demoDropdown:Set("Option C") else print("Element not found") end
-    end})
-     controlGroup:AddButton({ Text = "Set ColorPicker to Blue", Callback = function()
-        if elements.demoColorPicker then elements.demoColorPicker:Set(Color3.fromRGB(0, 100, 255)) else print("Element not found") end
-    end})
-     controlGroup:AddButton({ Text = "Update Label Text", Callback = function()
-        if elements.demoLabel then elements.demoLabel:Set("Label updated: " .. os.date("%X")) else print("Element not found") end
-    end})
-
-    -- Theme Control
-    tabTheme:AddSeparatorWithText({ Text = "Theme Control" })
-    tabTheme:AddLabel({ Text = "Change theme preset & refresh."})
-    tabTheme:AddLabel({ Text = "(Use Settings tab for per-color editing)"})
-
-    -- Define a light theme preset (can be expanded)
-    local lightThemePreset = {
-        Background = Color3.fromRGB(235, 235, 240), Primary = Color3.fromRGB(0, 120, 215),
-        Secondary = Color3.fromRGB(210, 210, 220), Header = Color3.fromRGB(220, 220, 225),
-        Outline = Color3.fromRGB(150, 150, 160), Text = Color3.fromRGB(10, 10, 15),
-        TextDisabled = Color3.fromRGB(100, 100, 110), TextActive = Color3.fromRGB(255, 255, 255),
-        ButtonHover = Color3.fromRGB(20, 140, 235), ButtonPress = Color3.fromRGB(0, 100, 195),
-        GroupBoxHeader = Color3.fromRGB(215, 215, 220), DropdownBackground = Color3.fromRGB(225, 225, 230),
-        DropdownHover = Color3.fromRGB(190, 190, 200), TooltipBackground = Color3.fromRGB(50, 50, 55),
-        TooltipText = Color3.fromRGB(230, 230, 235), Background_Gradient_Enabled = false, Header_Gradient_Enabled = false,
-    }
-    local darkThemePreset = table.clone(FreakyGui.Theme) -- Store original dark theme at script start
-
-    tabTheme:AddButton({ Text = "Apply Light Theme Preset", Callback = function()
-        if not MyWindow or not MyWindow.Frame then warn("Window not found!") return end
-        print("Applying Light Theme...")
-        for key, value in pairs(lightThemePreset) do
-            -- Only apply keys that exist in the preset to avoid errors if preset is incomplete
-            if FreakyGui.Theme[key] ~= nil then
-                 FreakyGui.Theme[key] = value
-            end
-        end
-        MyWindow:RefreshTheme()
-    end})
-
-    tabTheme:AddButton({ Text = "Apply Dark Theme Preset", Callback = function()
-        if not MyWindow or not MyWindow.Frame then warn("Window not found!") return end
-        print("Applying Dark Theme...")
-        for key, value in pairs(darkThemePreset) do
-             FreakyGui.Theme[key] = value
-        end
-        MyWindow:RefreshTheme()
-    end})
-
-    -- Window Control
-    tabTheme:AddSeparatorWithText({ Text = "Window Control" })
-    tabTheme:AddButton({ Text = "Hide Window (Use Keybind)", Tooltip = "Hides the window. Use "..tostring(MyWindow.Keybind).." to reopen.", Callback = function()
-         if MyWindow and MyWindow.Frame then MyWindow:SetVisibility(false) end
-    end})
-    tabTheme:AddButton({ Text = "Show Window", Callback = function()
-         if MyWindow and MyWindow.Frame then MyWindow:SetVisibility(true) end
-    end})
-    tabTheme:AddButton({ Text = "DESTROY GUI", Tooltip = "Permanently removes this GUI instance.", Callback = function()
-        if MyWindow and MyWindow.Destroy then
-            MyWindow:Destroy()
-            MyWindow = nil -- Clear the reference, important for re-execution
-            elements = {} -- Clear element references
-            print("FreakyGui Example: Window Destroyed.")
-             warn("FreakyGui Example: GUI Destroyed. Re-execute the script to create it again.")
-        else
-             warn("FreakyGui Example: Window already destroyed or reference lost.")
-        end
-    end})
-
-end
-
-print("------------------------------------------------------")
-print("FreakyGui Executor Example: Setup Complete.")
-if MyWindow and MyWindow.Keybind then -- Check if window exists before accessing keybind
-    print("Keybind to toggle: " .. tostring(MyWindow.Keybind))
-else
-    print("Window was not created or already destroyed.")
-end
-print("------------------------------------------------------")
