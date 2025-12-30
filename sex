@@ -1,7 +1,7 @@
 --[[
-  / MODIFIED EMPEREAN LIBRARY (With Script 2 Permadeath Logic)
+  / EMPEREAN LIBRARY (MODIFIED with MyWorld/Gun Script Permadeath Logic)
   / Original by: emperss#0
-  / Modified for: Neko Script Compatibility
+  / Logic移植 by: Genesis FE
 ]]
 
 local Options = nil
@@ -32,6 +32,13 @@ local RBXScriptConnections = { }
 local RigAccessories = { }
 local Tables = { }
 local Targets = { }
+
+-- // PERMADEATH VARIABLES (FROM SCRIPT 2) //
+local pdloadedtime = nil
+local rst = game:GetService("Players").RespawnTime + 0.07
+local replicatesignal = getgenv().replicatesignal or (function(...) return ... end)
+local cdsb = nil
+-- // END VARIABLES //
 
 local CFrame = CFrame
 local CFrameAngles = CFrame.Angles
@@ -79,6 +86,9 @@ local Instancenew = Instance.new
 local LocalPlayer = FindFirstChildOfClass(game, "Players").LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 
+-- Attempt to find cdsb (Executor dependent)
+cdsb = LocalPlayer:FindFirstChild("ConnectDiedSignalBackend") or LocalPlayer:FindFirstChild("cdsb")
+
 local math = math
 local mathrandom = math.random
 local mathsin = math.sin
@@ -120,11 +130,25 @@ local LimbSize = Vector3new(1, 2, 1)
 local TorsoSize = Vector3new(2, 2, 1)
 local Vector314 = Vector3new(16384, 16384, 16384)
 
-local function BreakJoints(Parent)
-  for _, Instance in pairs(GetDescendants(Parent)) do
-    if IsA(Instance, "JointInstance") then
-      Destroy(Instance)
+-- // Helper to fire Permadeath Signal //
+local function FirePermadeathSignal()
+    if cdsb and replicatesignal then
+        replicatesignal(cdsb)
+        pdloadedtime = osclock() + rst
     end
+end
+
+local function BreakJoints(Parent)
+  -- Logic from Script 2: If we can set HP to 0, do it, otherwise BreakJoints
+  local hum = Parent:FindFirstChild("Humanoid")
+  if hum then
+      hum.Health = 0
+  else
+      for _, Instance in pairs(GetDescendants(Parent)) do
+        if IsA(Instance, "JointInstance") then
+          Destroy(Instance)
+        end
+      end
   end
 end
 
@@ -373,6 +397,16 @@ end
 local function CharacterAdded()
   local Character = LocalPlayer.Character
 
+  -- // PERMADEATH LOGIC: Wait for the PD timer from Script 2 logic //
+  FirePermadeathSignal()
+  if pdloadedtime then
+      while osclock() < pdloadedtime do
+          taskwait()
+      end
+      pdloadedtime = nil
+  end
+  -- // END PERMADEATH WAITING //
+
   if Character and Character ~= Rig then
     tableclear(BaseParts)
     tableclear(Blacklist)
@@ -462,11 +496,8 @@ local function CharacterAdded()
       end
     end
 
-    taskwait(0.271)
-
-    if Character then
-      BreakJoints(Character)
-    end
+    -- // Replaces the generic taskwait(.271) with specific claim logic logic //
+    BreakJoints(Character)
   end
 end
 
@@ -632,18 +663,8 @@ local Emperean = {
       tableinsert(RBXScriptConnections, Connect(game.DescendantAdded, gameDescendantAdded))
     end
     
-    -- // SCRIPT 2 PERMADEATH LOGIC INJECTED HERE //
-    pcall(function()
-        local replicatesignal = getgenv().replicatesignal or function(sig) 
-             -- If replicatesignal doesn't exist, we fallback to just connecting the signal
-             return sig:Connect(function() end) 
-        end
-        local cdsb = LocalPlayer.ConnectDiedSignalBackend
-        if cdsb and replicatesignal then
-             replicatesignal(cdsb)
-        end
-    end)
-    -- // END INJECTION //
+    -- Initialize Permadeath Signal
+    FirePermadeathSignal()
 
     Boolean = true
     LastTime = osclock()
@@ -662,11 +683,10 @@ local Emperean = {
     end
 
     BindableEvent = Instancenew("BindableEvent")
-    -- DISABLED STOP ON RESET FOR PERMADEATH BEHAVIOR
-    -- Connect(BindableEvent.Event, Stop) 
+    -- PERMADEATH: Disable stop on reset
+    -- Connect(BindableEvent.Event, Stop)
     Connect(BindableEvent.Event, function()
-         -- Optional: Add logic here if you want something to happen on reset without killing script
-         -- Currently does nothing, keeping the script alive
+        -- Reset callback does nothing, allowing permadeath cycle to handle respawn
     end)
 
     tableinsert(RBXScriptConnections, Connect(GetPropertyChangedSignal(Workspace, "CurrentCamera"), Camera))
