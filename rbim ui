@@ -2111,14 +2111,18 @@ local library library = {
                             end
                         end
 
-                        function dropdownObject.Destroy()
+function dropdownObject.Destroy()
+    -- Only reset the text if the item being destroyed is currently selected
     if self.selected == name then
-        self.selected = nil
         inner:FindFirstChild("Value").Text = "[...]"
         dropdownWindow:FindFirstChild("Content"):FindFirstChild("Selected").Text = "[...]"
+        self.selected = nil
     end
-    rawset(dropdownObjects, name, nil)  -- was rawset(dropdownObject, name, nil) -- bug in original
-    dropdownOption:Destroy()            -- actually remove the GUI element
+    -- FIX: Use 'dropdownObjects' (with an 's') and actually destroy the UI element
+    rawset(dropdownObjects, name, nil) 
+    if dropdownOption then
+        dropdownOption:Destroy()
+    end
 end
 
                         return dropdownObject
