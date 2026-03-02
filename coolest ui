@@ -2792,7 +2792,8 @@ function elementHandler:Slider(sliderName: string, callback, maximumValue: numbe
 	local requiredErrorTextSpace = TextService:GetTextBoundsAsync(textParams)
 
 	local maxMinRange = math.abs(minimumValue - maximumValue)
-	local sliderValue = defaultValue  -- ← was hardcoded to minimumValue
+	defaultValue = math.clamp(defaultValue or minimumValue, minimumValue, maximumValue)
+	local sliderValue = defaultValue
 
 	local sliderConnection
 	local endInputConnection
@@ -2834,7 +2835,7 @@ function elementHandler:Slider(sliderName: string, callback, maximumValue: numbe
 	local function onFocusLost(enterPressed)
 		if enterPressed then
 			local enteredNum = tonumber(sliderInstance.TextGrouping.NumberText.Text)
-			if typeof(enteredNum) == "number" and enteredNum >= minimumValue and enteredNum <= maximumValue then
+if typeof(enteredNum) == "number" and enteredNum >= minimumValue and enteredNum <= maximumValue then
 				local absSize = sliderBar.Parent.EmptySliderBackground.AbsoluteSize
 				sliderValue = enteredNum
 				sliderInstance.TextGrouping.NumberText.Text = math.round(sliderValue)
@@ -2868,8 +2869,19 @@ function elementHandler:Slider(sliderName: string, callback, maximumValue: numbe
 	sliderInstance.TextGrouping.NumberText.Text = tostring(math.round(sliderValue))
 	sliderInstance.TextGrouping.NumberText.Size = UDim2.new(0, math.max(requiredErrorTextSpace.X, requiredNumberTextSpace.X) + textPixelOffset, 1, 0)
 
-	sliderInstance.Parent = self.ElementToParentChildren
+sliderInstance.Parent = self.ElementToParentChildren
 	sliderInstance.TextGrouping.SliderText.Size = UDim2.new(0, sliderInstance.TextGrouping.AbsoluteSize.X - textPixelOffset - requiredNumberTextSpace.X, 1, 0)
+
+	task.defer(function()
+		if sliderInstance and sliderInstance.Parent then
+			local percent = (sliderValue - minimumValue) / maxMinRange
+			local absW = sliderBar.Parent.EmptySliderBackground.AbsoluteSize.X
+			sliderBar.Size = UDim2.new(0, math.max(minimumClosePixelsLeft, percent * absW), 1, 0)
+		end
+	end)
+
+	return slider
+end
 
 	-- Set bar position to reflect defaultValue now that the instance is parented and has AbsoluteSize
 	task.defer(function()
