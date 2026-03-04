@@ -1219,8 +1219,16 @@ end
 			["Abstract"] = "6073743871",
 			["Hexagon"]  = "6073628839",
 			["Circles"]  = "6071579801",
-			["Floral"]   = "5553946656"
+			["Floral"]   = "5553946656",
+			["Sunset"] = "13476677628",
+			["Purple Planet"]  = "14157546902",
+			["Galaxy"]  = "2858903809",
+			["Night Sky"] = "13630365894",
+			["Stars"]  = "140242250256778",
+			["Purple Sky"]  = "98366238528477",
+			["My Little Pony"]  = "226301530"
 		}
+
 
 		local savedAssets = {}
 		local folderName = "LibraryAssets"
