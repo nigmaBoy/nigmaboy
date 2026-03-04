@@ -1,9 +1,10 @@
 local Library = {Toggle = true,FirstTab = nil,TabCount = 0,ColorTable = {}}
--- hah
+--sdfsdf
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
 
 -- Tween helper: smoothly transitions one or more properties on an instance
 local function SmoothTween(Instance, Duration, Properties)
@@ -85,6 +86,14 @@ function Library:CreateWindow(Config, Parent)
 	local SectionColorTable = {}
 	-- Track shadow/glow image labels
 	local ShadowColorTable = {}
+	-- Track individual element bg frames (dropdowns, textbox backgrounds, etc.)
+	-- Each entry: {Frame = frame, DarkenFactor = number}
+	local BgFrameTable = {}
+
+	local function RegisterBgFrame(Frame, DarkenFactor)
+		table.insert(BgFrameTable, {Frame = Frame, DarkenFactor = DarkenFactor or 0.78})
+		Frame.BackgroundColor3 = DarkenColor(Color3.fromRGB(30, 30, 30), DarkenFactor or 0.78)
+	end
 
 	-- Base color palette matching the original UI style (dark charcoal, white text, configurable accent)
 	-- These are applied immediately so the UI looks right from the first frame
@@ -217,6 +226,13 @@ function Library:CreateWindow(Config, Parent)
 			end
 			if data.ContainerBg then
 				SmoothTween(data.ContainerBg, 0.25, {BackgroundColor3 = DarkenColor(Color, 0.78)})
+			end
+		end
+
+		-- Element-level bg frames (dropdowns, etc.) follow with their own darken factor
+		for _, data in pairs(BgFrameTable) do
+			if data.Frame and data.Frame.Parent then
+				SmoothTween(data.Frame, 0.25, {BackgroundColor3 = DarkenColor(Color, data.DarkenFactor)})
 			end
 		end
 	end
@@ -738,8 +754,13 @@ function Library:CreateWindow(Config, Parent)
 
 				Dropdown.Title.Text = Name
 				Dropdown.Title.Size = UDim2.new(1, 0, 0, Dropdown.Title.TextBounds.Y + 5)
+				Dropdown.Title.BackgroundTransparency = 1
 				Dropdown.Container.Position = UDim2.new(0, 0, 0, Dropdown.Title.TextBounds.Y + 5)
 				Dropdown.Size = UDim2.new(1, -10, 0, Dropdown.Title.TextBounds.Y + 25)
+
+				-- Register the dropdown outer frame and its container so they follow bg color changes
+				RegisterBgFrame(Dropdown, 0.82)
+				RegisterBgFrame(Dropdown.Container, 0.70)
 
 				RegisterText(Dropdown.Title, "TextColor3", false)
 				RegisterText(Dropdown.Container.Value, "TextColor3", true)
@@ -940,6 +961,9 @@ function Library:CreateWindow(Config, Parent)
 				local ColorRender = nil
 				local HueRender = nil
 				local ColorpickerRender = nil
+				-- Tracks whether the user is actively dragging inside the pallete.
+				-- While true, the outside-click handler must not close the pallete.
+				local IsDraggingInside = false
 
 				local function UpdateColor()
 					Colorpicker.Color.BackgroundColor3 = Color3.fromHSV(ColorTable.Hue, ColorTable.Saturation, ColorTable.Value)
@@ -955,19 +979,18 @@ function Library:CreateWindow(Config, Parent)
 					end
 				end
 
+				-- GuiInset is the offset between raw screen coords (GetMouseLocation) and
+				-- AbsolutePosition which includes the CoreGui topbar (~36px). We subtract it
+				-- so that mouse position and AbsolutePosition are in the same coordinate space.
+				local GuiInset = GuiService:GetGuiInset()
+
 				local function IsMouseOverGui(GuiObject)
 					local Mouse = UserInputService:GetMouseLocation()
 					local AbsPos = GuiObject.AbsolutePosition
 					local AbsSize = GuiObject.AbsoluteSize
 					return Mouse.X >= AbsPos.X and Mouse.X <= AbsPos.X + AbsSize.X
-						and Mouse.Y >= AbsPos.Y and Mouse.Y <= AbsPos.Y + AbsSize.Y
+						and Mouse.Y >= AbsPos.Y - GuiInset.Y and Mouse.Y <= AbsPos.Y - GuiInset.Y + AbsSize.Y
 				end
-
-				-- This flag tracks whether the mouse button is currently held down
-				-- on any interactive part of the pallete (gradient or hue slider).
-				-- While it's true, the click-outside logic must NOT close the pallete,
-				-- because the user is in the middle of dragging to pick a color.
-				local PalleteInputActive = false
 
 				Colorpicker.MouseButton1Click:Connect(function()
 					if not Pallete.Visible then
@@ -980,17 +1003,34 @@ function Library:CreateWindow(Config, Parent)
 					end
 				end)
 
-				-- Track drag start/end on the gradient pallete
+				-- Close when clicking anywhere outside the pallete and not on the colorpicker button itself.
+				-- IsDraggingInside guard prevents closing while the user is dragging a slider inside.
+				-- Also check Pallete.Input so clicking the RGB textbox doesn't close the picker.
+				UserInputService.InputBegan:Connect(function(Input)
+					if Input.UserInputType == Enum.UserInputType.MouseButton1 and Pallete.Visible then
+						task.defer(function()
+							if Pallete.Visible and not IsDraggingInside
+								and not IsMouseOverGui(Pallete)
+								and not IsMouseOverGui(Colorpicker)
+								and not IsMouseOverGui(Pallete.Input)
+							then
+								ClosePallete()
+							end
+						end)
+					end
+				end)
+
 				Pallete.GradientPallete.InputBegan:Connect(function(Input)
 					if Input.UserInputType == Enum.UserInputType.MouseButton1 then
-						PalleteInputActive = true
+						IsDraggingInside = true
 						if ColorRender then ColorRender:Disconnect() end
 						ColorRender = RunService.RenderStepped:Connect(function()
 							local Mouse = UserInputService:GetMouseLocation()
-							-- FIX: use AbsolutePosition directly with no magic offset.
-							-- AbsolutePosition already accounts for the screen-space position of the element.
-							local ColorX = math.clamp(Mouse.X - Pallete.GradientPallete.AbsolutePosition.X, 0, Pallete.GradientPallete.AbsoluteSize.X) / Pallete.GradientPallete.AbsoluteSize.X
-							local ColorY = math.clamp(Mouse.Y - Pallete.GradientPallete.AbsolutePosition.Y, 0, Pallete.GradientPallete.AbsoluteSize.Y) / Pallete.GradientPallete.AbsoluteSize.Y
+							-- Subtract GuiInset so mouse coords match AbsolutePosition coords
+							local AdjY = Pallete.GradientPallete.AbsolutePosition.Y - GuiInset.Y
+							local AdjX = Pallete.GradientPallete.AbsolutePosition.X
+							local ColorX = math.clamp(Mouse.X - AdjX, 0, Pallete.GradientPallete.AbsoluteSize.X) / Pallete.GradientPallete.AbsoluteSize.X
+							local ColorY = math.clamp(Mouse.Y - AdjY, 0, Pallete.GradientPallete.AbsoluteSize.Y) / Pallete.GradientPallete.AbsoluteSize.Y
 							Pallete.GradientPallete.Dot.Position = UDim2.new(ColorX, 0, ColorY, 0)
 							ColorTable.Saturation = ColorX
 							ColorTable.Value = 1 - ColorY
@@ -1001,15 +1041,14 @@ function Library:CreateWindow(Config, Parent)
 
 				Pallete.GradientPallete.InputEnded:Connect(function(Input)
 					if Input.UserInputType == Enum.UserInputType.MouseButton1 then
-						PalleteInputActive = false
+						IsDraggingInside = false
 						if ColorRender then ColorRender:Disconnect() end
 					end
 				end)
 
-				-- Track drag start/end on the hue slider
 				Pallete.ColorSlider.InputBegan:Connect(function(Input)
 					if Input.UserInputType == Enum.UserInputType.MouseButton1 then
-						PalleteInputActive = true
+						IsDraggingInside = true
 						if HueRender then HueRender:Disconnect() end
 						HueRender = RunService.RenderStepped:Connect(function()
 							local Mouse = UserInputService:GetMouseLocation()
@@ -1022,22 +1061,8 @@ function Library:CreateWindow(Config, Parent)
 
 				Pallete.ColorSlider.InputEnded:Connect(function(Input)
 					if Input.UserInputType == Enum.UserInputType.MouseButton1 then
-						PalleteInputActive = false
+						IsDraggingInside = false
 						if HueRender then HueRender:Disconnect() end
-					end
-				end)
-
-				-- Close when clicking anywhere outside the pallete (and not on the colorpicker button itself).
-				-- The PalleteInputActive guard ensures that dragging on the gradient/hue slider
-				-- never triggers a close mid-drag, even if the mouse briefly leaves the element.
-				UserInputService.InputBegan:Connect(function(Input)
-					if Input.UserInputType == Enum.UserInputType.MouseButton1 and Pallete.Visible then
-						task.defer(function()
-							if PalleteInputActive then return end
-							if Pallete.Visible and not IsMouseOverGui(Pallete) and not IsMouseOverGui(Colorpicker) then
-								ClosePallete()
-							end
-						end)
 					end
 				end)
 
@@ -1099,17 +1124,6 @@ function Library:CreateWindow(Config, Parent)
 		ColorsSection:CreateColorpicker("Background Color", function(Color)
 			WindowInit:ChangeBgColor(Color)
 		end):UpdateColor(CurrentBgColor)
-
-		ColorsSection:CreateColorpicker("Section Color", function(Color)
-			for _, data in pairs(SectionColorTable) do
-				if data.SectionFrame then
-					SmoothTween(data.SectionFrame, 0.25, {BackgroundColor3 = Color})
-				end
-				if data.ContainerBg then
-					SmoothTween(data.ContainerBg, 0.25, {BackgroundColor3 = Color})
-				end
-			end
-		end):UpdateColor(DarkenColor(CurrentBgColor, 0.78))
 
 		ColorsSection:CreateColorpicker("Text Color", function(Color)
 			WindowInit:ChangeTextColor(Color)
