@@ -547,7 +547,7 @@ function Library:CreateWindow(Config, Parent)
 
 				return SliderInit
 			end
-			function SectionInit:CreateDropdown(Name, OptionTable, Callback, InitialValue)
+			function SectionInit:CreateDropdown(Name, OptionTable, Callback, InitialValue, MultiSelect)
 				local DropdownInit = {}
 				local Dropdown = Folder.Dropdown:Clone()
 				Dropdown.Name = Name .. " D"
@@ -559,6 +559,7 @@ function Library:CreateWindow(Config, Parent)
 				Dropdown.Size = UDim2.new(1,-10,0,Dropdown.Title.TextBounds.Y + 25)
 
 				local DropdownToggle = false
+				local SelectedOptions = {} -- Used for MultiSelect
 
 				Dropdown.MouseButton1Click:Connect(function()
 					DropdownToggle = not DropdownToggle
@@ -571,7 +572,18 @@ function Library:CreateWindow(Config, Parent)
 					end
 				end)
 
-				for _,OptionName in pairs(OptionTable) do
+				local function UpdateDisplayText()
+					if MultiSelect then
+						if #SelectedOptions == 0 then
+							Dropdown.Container.Value.Text = "None"
+						else
+							Dropdown.Container.Value.Text = table.concat(SelectedOptions, ", ")
+						end
+					end
+				end
+
+				-- Local helper to create options (used for initial creation & AddOption)
+				local function AddOptionLogic(OptionName)
 					local Option = Folder.Option:Clone()
 					Option.Name = OptionName
 					Option.Parent = Dropdown.Container.Holder.Container
@@ -579,26 +591,49 @@ function Library:CreateWindow(Config, Parent)
 					Option.Title.Text = OptionName
 					Option.BackgroundColor3 = Config.Color
 					Option.Size = UDim2.new(1,0,0,Option.Title.TextBounds.Y + 5)
+					Option.BackgroundTransparency = 1
 					Dropdown.Container.Holder.Size = UDim2.new(1,-5,0,Dropdown.Container.Holder.Container.ListLayout.AbsoluteContentSize.Y)
 					table.insert(Library.ColorTable, Option)
 
-					Option.MouseButton1Down:Connect(function()
-						Option.BackgroundTransparency = 0
-					end)
+					local function IsSelected()
+						return MultiSelect and table.find(SelectedOptions, OptionName) ~= nil
+					end
 
+					Option.MouseButton1Down:Connect(function() Option.BackgroundTransparency = 0 end)
 					Option.MouseButton1Up:Connect(function()
-						Option.BackgroundTransparency = 1
+						if not IsSelected() then Option.BackgroundTransparency = 1 end
 					end)
-
 					Option.MouseLeave:Connect(function()
-						Option.BackgroundTransparency = 1
+						if not IsSelected() then Option.BackgroundTransparency = 1 end
 					end)
 
 					Option.MouseButton1Click:Connect(function()
-						Dropdown.Container.Value.Text = OptionName
-						Callback(OptionName)
+						if MultiSelect then
+							if IsSelected() then
+								-- Deselect
+								table.remove(SelectedOptions, table.find(SelectedOptions, OptionName))
+								Option.BackgroundTransparency = 1
+							else
+								-- Select
+								table.insert(SelectedOptions, OptionName)
+								Option.BackgroundTransparency = 0
+							end
+							UpdateDisplayText()
+							Callback(SelectedOptions)
+						else
+							Dropdown.Container.Value.Text = OptionName
+							Callback(OptionName)
+						end
 					end)
+
+					-- Keep it highlighted if it was added dynamically but already exists in the selected state
+					if IsSelected() then Option.BackgroundTransparency = 0 end
 				end
+
+				for _,OptionName in pairs(OptionTable) do
+					AddOptionLogic(OptionName)
+				end
+
 				function DropdownInit:AddToolTip(Name)
 					if tostring(Name):gsub(" ", "") ~= "" then
 						Dropdown.MouseEnter:Connect(function()
@@ -614,67 +649,90 @@ function Library:CreateWindow(Config, Parent)
 				end
 
 				function DropdownInit:GetOption()
-					return Dropdown.Container.Value.Text
+					if MultiSelect then return SelectedOptions else return Dropdown.Container.Value.Text end
 				end
+
 				function DropdownInit:SetOption(Name)
-					for _,Option in pairs(Dropdown.Container.Holder.Container:GetChildren()) do
-						if Option:IsA("TextButton") and string.find(Option.Name, Name) then
-							Dropdown.Container.Value.Text = Option.Name
-							Callback(Name)
+					if MultiSelect then
+						if type(Name) == "table" then
+							SelectedOptions = {}
+							for _, val in pairs(Name) do table.insert(SelectedOptions, val) end
+						else
+							if not table.find(SelectedOptions, Name) then table.insert(SelectedOptions, Name) end
+						end
+						
+						-- Refresh visual highlight states
+						for _,Option in pairs(Dropdown.Container.Holder.Container:GetChildren()) do
+							if Option:IsA("TextButton") then
+								if table.find(SelectedOptions, Option.Name) then
+									Option.BackgroundTransparency = 0
+								else
+									Option.BackgroundTransparency = 1
+								end
+							end
+						end
+						UpdateDisplayText()
+						Callback(SelectedOptions)
+					else
+						for _,Option in pairs(Dropdown.Container.Holder.Container:GetChildren()) do
+							if Option:IsA("TextButton") and string.find(Option.Name, Name) then
+								Dropdown.Container.Value.Text = Option.Name
+								Callback(Name)
+							end
 						end
 					end
 				end
-function DropdownInit:RemoveOption(Name)
-    for _,Option in pairs(Dropdown.Container.Holder.Container:GetChildren()) do
-        if Option:IsA("TextButton") and string.find(Option.Name, Name) then
-            Option:Destroy()
-        end
-    end
-    Dropdown.Container.Holder.Size = UDim2.new(1,-5,0,Dropdown.Container.Holder.Container.ListLayout.AbsoluteContentSize.Y)
-    -- Only expand if the dropdown is actually open
-    if DropdownToggle then
-        Dropdown.Size = UDim2.new(1,-10,0,Dropdown.Container.Holder.Container.ListLayout.AbsoluteContentSize.Y + Dropdown.Title.TextBounds.Y + 30)
-    else
-        Dropdown.Size = UDim2.new(1,-10,0,Dropdown.Title.TextBounds.Y + 25)
-    end
-end
-function DropdownInit:AddOption(OptionName)
-    local Option = Folder.Option:Clone()
-    Option.Name = OptionName
-    Option.Parent = Dropdown.Container.Holder.Container
-    Option.Title.Text = OptionName
-    Option.BackgroundColor3 = Config.Color
-    Option.Size = UDim2.new(1,0,0,Option.Title.TextBounds.Y + 5)
-    Option.BackgroundTransparency = 1
-    table.insert(Library.ColorTable, Option)
 
-    Option.MouseButton1Down:Connect(function() Option.BackgroundTransparency = 0 end)
-    Option.MouseButton1Up:Connect(function() Option.BackgroundTransparency = 1 end)
-    Option.MouseLeave:Connect(function() Option.BackgroundTransparency = 1 end)
-    Option.MouseButton1Click:Connect(function()
-        Dropdown.Container.Value.Text = OptionName
-        Callback(OptionName)
-    end)
+				function DropdownInit:RemoveOption(Name)
+					for _,Option in pairs(Dropdown.Container.Holder.Container:GetChildren()) do
+						if Option:IsA("TextButton") and string.find(Option.Name, Name) then
+							Option:Destroy()
+						end
+					end
+					if MultiSelect then
+						local index = table.find(SelectedOptions, Name)
+						if index then
+							table.remove(SelectedOptions, index)
+							UpdateDisplayText()
+							Callback(SelectedOptions)
+						end
+					end
+					Dropdown.Container.Holder.Size = UDim2.new(1,-5,0,Dropdown.Container.Holder.Container.ListLayout.AbsoluteContentSize.Y)
+					if DropdownToggle then
+						Dropdown.Size = UDim2.new(1,-10,0,Dropdown.Container.Holder.Container.ListLayout.AbsoluteContentSize.Y + Dropdown.Title.TextBounds.Y + 30)
+					else
+						Dropdown.Size = UDim2.new(1,-10,0,Dropdown.Title.TextBounds.Y + 25)
+					end
+				end
 
-    Dropdown.Container.Holder.Size = UDim2.new(1,-5,0,Dropdown.Container.Holder.Container.ListLayout.AbsoluteContentSize.Y)
-    if DropdownToggle then
-        Dropdown.Size = UDim2.new(1,-10,0,Dropdown.Container.Holder.Container.ListLayout.AbsoluteContentSize.Y + Dropdown.Title.TextBounds.Y + 30)
-    end
-end
-	function DropdownInit:ClearOptions()
-    for _, Option in pairs(Dropdown.Container.Holder.Container:GetChildren()) do
-        if Option:IsA("TextButton") then
-            Option:Destroy()
-        end
-    end
-    Dropdown.Container.Holder.Size = UDim2.new(1,-5,0,0)
-    Dropdown.Size = UDim2.new(1,-10,0,Dropdown.Title.TextBounds.Y + 25)
-    DropdownToggle = false
-    Dropdown.Container.Holder.Visible = false
-end
+				function DropdownInit:AddOption(OptionName)
+					AddOptionLogic(OptionName)
+					if DropdownToggle then
+						Dropdown.Size = UDim2.new(1,-10,0,Dropdown.Container.Holder.Container.ListLayout.AbsoluteContentSize.Y + Dropdown.Title.TextBounds.Y + 30)
+					end
+				end
+
+				function DropdownInit:ClearOptions()
+					for _, Option in pairs(Dropdown.Container.Holder.Container:GetChildren()) do
+						if Option:IsA("TextButton") then Option:Destroy() end
+					end
+					if MultiSelect then
+						SelectedOptions = {}
+						UpdateDisplayText()
+					end
+					Dropdown.Container.Holder.Size = UDim2.new(1,-5,0,0)
+					Dropdown.Size = UDim2.new(1,-10,0,Dropdown.Title.TextBounds.Y + 25)
+					DropdownToggle = false
+					Dropdown.Container.Holder.Visible = false
+				end
+
 				if InitialValue then
 					DropdownInit:SetOption(InitialValue)
 				end
+				if MultiSelect and not InitialValue then
+					UpdateDisplayText()
+				end
+
 				return DropdownInit
 			end
 			function SectionInit:CreateColorpicker(Name,Callback)
