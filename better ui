@@ -287,14 +287,7 @@ function Library:CreateWindow(Config, Parent)
 	end
 
 function WindowInit:SetBackground(ImageId)
-    local id = tostring(ImageId)
-    if id:find("rbxassetid://") or id:find("rbxthumb://") or id:find("rbxgameasset://") then
-        -- Already a full URL, use as-is
-        Holder.Image = id
-    else
-        -- Raw number ID, assume asset
-        Holder.Image = "rbxassetid://" .. id
-    end
+    Holder.Image = "rbxthumb://type=Asset&id=" .. ImageId .. "&w=420&h=420"
 end
 
 	function WindowInit:SetBackgroundColor(Color)
