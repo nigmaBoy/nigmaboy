@@ -1,5 +1,5 @@
 local Library = {Toggle = true,FirstTab = nil,TabCount = 0,ColorTable = {}}
--- hah
+--fwah
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
@@ -85,6 +85,14 @@ function Library:CreateWindow(Config, Parent)
 	local SectionColorTable = {}
 	-- Track shadow/glow image labels
 	local ShadowColorTable = {}
+	-- Track individual element bg frames (dropdowns, textbox backgrounds, etc.)
+	-- Each entry: {Frame = frame, DarkenFactor = number}
+	local BgFrameTable = {}
+
+	local function RegisterBgFrame(Frame, DarkenFactor)
+		table.insert(BgFrameTable, {Frame = Frame, DarkenFactor = DarkenFactor or 0.78})
+		Frame.BackgroundColor3 = DarkenColor(Color3.fromRGB(30, 30, 30), DarkenFactor or 0.78)
+	end
 
 	-- Base color palette matching the original UI style (dark charcoal, white text, configurable accent)
 	-- These are applied immediately so the UI looks right from the first frame
@@ -217,6 +225,13 @@ function Library:CreateWindow(Config, Parent)
 			end
 			if data.ContainerBg then
 				SmoothTween(data.ContainerBg, 0.25, {BackgroundColor3 = DarkenColor(Color, 0.78)})
+			end
+		end
+
+		-- Element-level bg frames (dropdowns, etc.) follow with their own darken factor
+		for _, data in pairs(BgFrameTable) do
+			if data.Frame and data.Frame.Parent then
+				SmoothTween(data.Frame, 0.25, {BackgroundColor3 = DarkenColor(Color, data.DarkenFactor)})
 			end
 		end
 	end
@@ -741,6 +756,10 @@ function Library:CreateWindow(Config, Parent)
 				Dropdown.Container.Position = UDim2.new(0, 0, 0, Dropdown.Title.TextBounds.Y + 5)
 				Dropdown.Size = UDim2.new(1, -10, 0, Dropdown.Title.TextBounds.Y + 25)
 
+				-- Register the dropdown outer frame and its container so they follow bg color changes
+				RegisterBgFrame(Dropdown, 0.82)
+				RegisterBgFrame(Dropdown.Container, 0.70)
+
 				RegisterText(Dropdown.Title, "TextColor3", false)
 				RegisterText(Dropdown.Container.Value, "TextColor3", true)
 
@@ -940,6 +959,9 @@ function Library:CreateWindow(Config, Parent)
 				local ColorRender = nil
 				local HueRender = nil
 				local ColorpickerRender = nil
+				-- Tracks whether the user is actively dragging inside the pallete.
+				-- While true, the outside-click handler must not close the pallete.
+				local IsDraggingInside = false
 
 				local function UpdateColor()
 					Colorpicker.Color.BackgroundColor3 = Color3.fromHSV(ColorTable.Hue, ColorTable.Saturation, ColorTable.Value)
@@ -974,12 +996,12 @@ function Library:CreateWindow(Config, Parent)
 					end
 				end)
 
-				-- Close when clicking anywhere outside the pallete (and not on the colorpicker button itself)
+				-- Close when clicking anywhere outside the pallete and not on the colorpicker button itself.
+				-- IsDraggingInside guard prevents closing while the user is dragging a slider inside.
 				UserInputService.InputBegan:Connect(function(Input)
 					if Input.UserInputType == Enum.UserInputType.MouseButton1 and Pallete.Visible then
-						-- Small delay so the Colorpicker.MouseButton1Click fires first if that was what was clicked
 						task.defer(function()
-							if Pallete.Visible and not IsMouseOverGui(Pallete) and not IsMouseOverGui(Colorpicker) then
+							if Pallete.Visible and not IsDraggingInside and not IsMouseOverGui(Pallete) and not IsMouseOverGui(Colorpicker) then
 								ClosePallete()
 							end
 						end)
@@ -988,11 +1010,13 @@ function Library:CreateWindow(Config, Parent)
 
 				Pallete.GradientPallete.InputBegan:Connect(function(Input)
 					if Input.UserInputType == Enum.UserInputType.MouseButton1 then
+						IsDraggingInside = true
 						if ColorRender then ColorRender:Disconnect() end
 						ColorRender = RunService.RenderStepped:Connect(function()
 							local Mouse = UserInputService:GetMouseLocation()
 							local ColorX = math.clamp(Mouse.X - Pallete.GradientPallete.AbsolutePosition.X, 0, Pallete.GradientPallete.AbsoluteSize.X) / Pallete.GradientPallete.AbsoluteSize.X
-							local ColorY = math.clamp((Mouse.Y - 37) - Pallete.GradientPallete.AbsolutePosition.Y, 0, Pallete.GradientPallete.AbsoluteSize.Y) / Pallete.GradientPallete.AbsoluteSize.Y
+							-- No manual Y offset — AbsolutePosition already gives correct screen coords
+							local ColorY = math.clamp(Mouse.Y - Pallete.GradientPallete.AbsolutePosition.Y, 0, Pallete.GradientPallete.AbsoluteSize.Y) / Pallete.GradientPallete.AbsoluteSize.Y
 							Pallete.GradientPallete.Dot.Position = UDim2.new(ColorX, 0, ColorY, 0)
 							ColorTable.Saturation = ColorX
 							ColorTable.Value = 1 - ColorY
@@ -1003,12 +1027,14 @@ function Library:CreateWindow(Config, Parent)
 
 				Pallete.GradientPallete.InputEnded:Connect(function(Input)
 					if Input.UserInputType == Enum.UserInputType.MouseButton1 then
+						IsDraggingInside = false
 						if ColorRender then ColorRender:Disconnect() end
 					end
 				end)
 
 				Pallete.ColorSlider.InputBegan:Connect(function(Input)
 					if Input.UserInputType == Enum.UserInputType.MouseButton1 then
+						IsDraggingInside = true
 						if HueRender then HueRender:Disconnect() end
 						HueRender = RunService.RenderStepped:Connect(function()
 							local Mouse = UserInputService:GetMouseLocation()
@@ -1021,6 +1047,7 @@ function Library:CreateWindow(Config, Parent)
 
 				Pallete.ColorSlider.InputEnded:Connect(function(Input)
 					if Input.UserInputType == Enum.UserInputType.MouseButton1 then
+						IsDraggingInside = false
 						if HueRender then HueRender:Disconnect() end
 					end
 				end)
@@ -1083,17 +1110,6 @@ function Library:CreateWindow(Config, Parent)
 		ColorsSection:CreateColorpicker("Background Color", function(Color)
 			WindowInit:ChangeBgColor(Color)
 		end):UpdateColor(CurrentBgColor)
-
-		ColorsSection:CreateColorpicker("Section Color", function(Color)
-			for _, data in pairs(SectionColorTable) do
-				if data.SectionFrame then
-					SmoothTween(data.SectionFrame, 0.25, {BackgroundColor3 = Color})
-				end
-				if data.ContainerBg then
-					SmoothTween(data.ContainerBg, 0.25, {BackgroundColor3 = Color})
-				end
-			end
-		end):UpdateColor(DarkenColor(CurrentBgColor, 0.78))
 
 		ColorsSection:CreateColorpicker("Text Color", function(Color)
 			WindowInit:ChangeTextColor(Color)
