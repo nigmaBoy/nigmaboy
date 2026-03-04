@@ -192,17 +192,17 @@ function Library:CreateWindow(Config, Parent)
 		SmoothTween(Holder, 0.25, {BackgroundColor3 = HolderColor})
 		SmoothTween(EdgeStroke, 0.25, {Color = EdgeColor})
 
-		-- Shadow/glow follows background: derive a very dark version
-		local ShadowColor = DarkenColor(Color, 0.2)
+		-- Shadow/glow: keep it black but adjust transparency based on how dark the bg is.
+		-- Darker bg = more transparent shadow so it doesn't become a thick black blob.
+		local _, _, BgV = Color:ToHSV()
+		-- BgV near 0 = very dark bg, shadow nearly invisible. BgV near 1 = bright bg, shadow more visible.
+		local ShadowTransparency = 1 - (BgV * 0.55)
 		for _, shadow in pairs(ShadowColorTable) do
-			SmoothTween(shadow, 0.25, {ImageColor3 = ShadowColor})
+			SmoothTween(shadow, 0.25, {ImageColor3 = Color3.fromRGB(0, 0, 0), ImageTransparency = ShadowTransparency})
 		end
 
 		-- Section containers follow bg with a slight offset
 		for _, data in pairs(SectionColorTable) do
-			if data.TitleBg then
-				SmoothTween(data.TitleBg, 0.25, {BackgroundColor3 = DarkenColor(Color, 0.7)})
-			end
 			if data.ContainerBg then
 				SmoothTween(data.ContainerBg, 0.25, {BackgroundColor3 = DarkenColor(Color, 0.75)})
 			end
@@ -236,9 +236,9 @@ function Library:CreateWindow(Config, Parent)
 		end
 	end
 
-	-- Register a section's visual frames for bg color tracking
-	local function RegisterSection(TitleBg, ContainerBg)
-		table.insert(SectionColorTable, {TitleBg = TitleBg, ContainerBg = ContainerBg})
+	-- Register a section's container frame for bg color tracking
+	local function RegisterSection(ContainerBg)
+		table.insert(SectionColorTable, {ContainerBg = ContainerBg})
 	end
 
 	function WindowInit:Toggle(State)
@@ -364,10 +364,12 @@ function Library:CreateWindow(Config, Parent)
 
 			Section.Title.Text = Name
 			Section.Title.Size = UDim2.new(0, Section.Title.TextBounds.X + 10, 0, 2)
+			-- Hide the background bar behind the section title text
+			Section.Title.BackgroundTransparency = 1
 
-			-- Register section title label text and background for color tracking
+			-- Register section title label text and container bg for color tracking
 			RegisterText(Section.Title, "TextColor3", false)
-			RegisterSection(Section.Title, Section.Container)
+			RegisterSection(Section.Container)
 
 			Section.Container.ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 				Section.Size = UDim2.new(1, 0, 0, Section.Container.ListLayout.AbsoluteContentSize.Y + 15)
@@ -929,6 +931,21 @@ function Library:CreateWindow(Config, Parent)
 					Callback(Colorpicker.Color.BackgroundColor3)
 				end
 
+				local function ClosePallete()
+					if Pallete.Visible then
+						Pallete.Visible = false
+						if ColorpickerRender then ColorpickerRender:Disconnect() end
+					end
+				end
+
+				local function IsMouseOverGui(GuiObject)
+					local Mouse = UserInputService:GetMouseLocation()
+					local AbsPos = GuiObject.AbsolutePosition
+					local AbsSize = GuiObject.AbsoluteSize
+					return Mouse.X >= AbsPos.X and Mouse.X <= AbsPos.X + AbsSize.X
+						and Mouse.Y >= AbsPos.Y and Mouse.Y <= AbsPos.Y + AbsSize.Y
+				end
+
 				Colorpicker.MouseButton1Click:Connect(function()
 					if not Pallete.Visible then
 						ColorpickerRender = RunService.RenderStepped:Connect(function()
@@ -936,8 +953,19 @@ function Library:CreateWindow(Config, Parent)
 						end)
 						Pallete.Visible = true
 					else
-						Pallete.Visible = false
-						ColorpickerRender:Disconnect()
+						ClosePallete()
+					end
+				end)
+
+				-- Close when clicking anywhere outside the pallete (and not on the colorpicker button itself)
+				UserInputService.InputBegan:Connect(function(Input)
+					if Input.UserInputType == Enum.UserInputType.MouseButton1 and Pallete.Visible then
+						-- Small delay so the Colorpicker.MouseButton1Click fires first if that was what was clicked
+						task.defer(function()
+							if Pallete.Visible and not IsMouseOverGui(Pallete) and not IsMouseOverGui(Colorpicker) then
+								ClosePallete()
+							end
+						end)
 					end
 				end)
 
@@ -1028,9 +1056,43 @@ function Library:CreateWindow(Config, Parent)
 
 		local ConfigSection = SettingsTab:CreateSection("Customization")
 
-		ConfigSection:CreateSlider("UI Scale", 50, 150, 100, true, function(Value)
-			MainScale.Scale = Value / 100
-		end):AddToolTip("Scales the entire UI window")
+		ConfigSection:CreateTextBox("UI Scale", "50 - 150  (default: 100)", true, function(Value)
+			local num = tonumber(Value)
+			if num then
+				num = math.clamp(num, 50, 150)
+				MainScale.Scale = num / 100
+			end
+		end):AddToolTip("Type a number 50–150 to scale the UI window")
+
+		local ToggleKeybindSection = SettingsTab:CreateSection("Toggle Keybind")
+		local ToggleKeybindLabel = ToggleKeybindSection:CreateLabel("Current keybind: RightShift")
+
+		local CurrentToggleBind = Config.ToggleKeybind or "RightShift"
+		local WaitingForToggleBind = false
+		local ToggleBindBlacklist = {"W","A","S","D","Slash","Tab","Backspace","Escape","Space","Delete","Unknown","Backquote"}
+
+		ToggleKeybindSection:CreateButton("Set Toggle Keybind", function()
+			WaitingForToggleBind = true
+			ToggleKeybindLabel:UpdateText("Current keybind: [ press a key... ]")
+		end):AddToolTip("Click then press a key to bind UI open/close")
+
+		UserInputService.InputBegan:Connect(function(Input, GameProcessed)
+			if WaitingForToggleBind and Input.UserInputType == Enum.UserInputType.Keyboard then
+				local Key = tostring(Input.KeyCode):gsub("Enum.KeyCode.", "")
+				if not table.find(ToggleBindBlacklist, Key) then
+					CurrentToggleBind = Key
+					ToggleKeybindLabel:UpdateText("Current keybind: " .. Key)
+				else
+					ToggleKeybindLabel:UpdateText("Current keybind: " .. CurrentToggleBind .. " (that key is blacklisted)")
+				end
+				WaitingForToggleBind = false
+			elseif not WaitingForToggleBind and not GameProcessed and Input.UserInputType == Enum.UserInputType.Keyboard then
+				local Key = tostring(Input.KeyCode):gsub("Enum.KeyCode.", "")
+				if Key == CurrentToggleBind then
+					Toggle(not Library.Toggle)
+				end
+			end
+		end)
 
 		ConfigSection:CreateColorpicker("Theme Color", function(Color)
 			WindowInit:ChangeColor(Color)
@@ -1058,14 +1120,6 @@ function Library:CreateWindow(Config, Parent)
 		end)
 
 		local SectionCustomSection = SettingsTab:CreateSection("Section Customization")
-
-		SectionCustomSection:CreateColorpicker("Section Title Color", function(Color)
-			for _, data in pairs(SectionColorTable) do
-				if data.TitleBg then
-					SmoothTween(data.TitleBg, 0.25, {BackgroundColor3 = Color})
-				end
-			end
-		end):UpdateColor(DarkenColor(CurrentBgColor, 0.7))
 
 		SectionCustomSection:CreateColorpicker("Section Container Color", function(Color)
 			for _, data in pairs(SectionColorTable) do
