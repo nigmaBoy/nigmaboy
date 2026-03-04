@@ -1,5 +1,5 @@
 local Library = {Toggle = true,FirstTab = nil,TabCount = 0,ColorTable = {}}
--- hah
+-- hahah
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
@@ -987,8 +987,9 @@ function Library:CreateWindow(Config, Parent)
 						if ColorRender then ColorRender:Disconnect() end
 						ColorRender = RunService.RenderStepped:Connect(function()
 							local Mouse = UserInputService:GetMouseLocation()
-							-- FIX: use AbsolutePosition directly with no magic offset.
-							-- AbsolutePosition already accounts for the screen-space position of the element.
+							-- FIX: removed the old hardcoded "- 37" Y offset that was pushing the dot
+							-- lower than the actual mouse position. AbsolutePosition already gives us
+							-- the correct screen-space top-left of the element, no manual adjustment needed.
 							local ColorX = math.clamp(Mouse.X - Pallete.GradientPallete.AbsolutePosition.X, 0, Pallete.GradientPallete.AbsoluteSize.X) / Pallete.GradientPallete.AbsoluteSize.X
 							local ColorY = math.clamp(Mouse.Y - Pallete.GradientPallete.AbsolutePosition.Y, 0, Pallete.GradientPallete.AbsoluteSize.Y) / Pallete.GradientPallete.AbsoluteSize.Y
 							Pallete.GradientPallete.Dot.Position = UDim2.new(ColorX, 0, ColorY, 0)
@@ -1029,7 +1030,7 @@ function Library:CreateWindow(Config, Parent)
 
 				-- Close when clicking anywhere outside the pallete (and not on the colorpicker button itself).
 				-- The PalleteInputActive guard ensures that dragging on the gradient/hue slider
-				-- never triggers a close mid-drag, even if the mouse briefly leaves the element.
+				-- never triggers a close mid-drag, even if the mouse briefly leaves the element bounds.
 				UserInputService.InputBegan:Connect(function(Input)
 					if Input.UserInputType == Enum.UserInputType.MouseButton1 and Pallete.Visible then
 						task.defer(function()
@@ -1178,13 +1179,13 @@ function Library:CreateWindow(Config, Parent)
 			WindowInit:Unload()
 		end):AddToolTip("Destroys the entire UI permanently")
 
-		ControlsSection:CreateTextBox("UI Scale", "50–150  (default: 100)", true, function(Value)
+		ControlsSection:CreateTextBox("UI Scale", "50-150  (default: 100)", true, function(Value)
 			local num = tonumber(Value)
 			if num then
 				num = math.clamp(num, 50, 150)
 				MainScale.Scale = num / 100
 			end
-		end):AddToolTip("Type a number 50–150 to scale the UI window")
+		end):AddToolTip("Type a number 50-150 to scale the UI window")
 
 		-- ── RIGHT SIDE — Asset Manager ────────────────────────────────────────────
 
@@ -1259,12 +1260,3 @@ function Library:CreateWindow(Config, Parent)
 end
 
 return Library
-ENDOFFILE
-Output
-
-Input validation errors occurred:
-description: Field required
-
-Running command
-
-Script
