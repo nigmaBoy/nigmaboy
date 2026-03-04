@@ -33,7 +33,6 @@ local function MakeDraggable(ClickObject, Object)
 	
 	UserInputService.InputChanged:Connect(function(Input)
 		if Input == DragInput and Dragging then
-			-- Fixed Dragging to account for UIScale!
 			local uiScale = Object:FindFirstChildOfClass("UIScale")
 			local scaleMult = uiScale and uiScale.Scale or 1
 			local Delta = (Input.Position - DragStart) / scaleMult
@@ -52,13 +51,11 @@ function Library:CreateWindow(Config, Parent)
 	local TContainer = Holder.TContainer
 	local TBContainer = Holder.TBContainer.Holder
 	
-	-- Adding a UIScale object for the settings tab UI Scale feature
 	local MainScale = Instance.new("UIScale")
 	MainScale.Parent = Main
 	MainScale.Scale = 1
 
 	--[[
-	-- idk probably fix for exploits that dont have this function
 	if syn and syn.protect_gui then
 		syn.protect_gui(Screen)
 	end
@@ -151,7 +148,6 @@ function Library:CreateWindow(Config, Parent)
 	function WindowInit:SetBackgroundColor(Color)
 		Holder.ImageColor3 = Color
 	end
-	
 	function WindowInit:SetBackgroundTransparency(Transparency)
 		Holder.ImageTransparency = Transparency
 	end
@@ -159,7 +155,6 @@ function Library:CreateWindow(Config, Parent)
 	function WindowInit:SetTileOffset(Offset)
 		Holder.TileSize = UDim2.new(0,Offset,0,Offset)
 	end
-	
 	function WindowInit:SetTileScale(Scale)
 		Holder.TileSize = UDim2.new(Scale,0,Scale,0)
 	end
@@ -311,10 +306,8 @@ function Library:CreateWindow(Config, Parent)
 				TextBox.Background.Input.FocusLost:Connect(function()
 					if NumbersOnly and not tonumber(TextBox.Background.Input.Text) then
 						Callback(tonumber(TextBox.Background.Input.Text))
-						--TextBox.Background.Input.Text = ""
 					else
 						Callback(TextBox.Background.Input.Text)
-						--TextBox.Background.Input.Text = ""
 					end
 				end)
 				function TextBoxInit:SetValue(String)
@@ -558,7 +551,6 @@ function Library:CreateWindow(Config, Parent)
 
 				return SliderInit
 			end
-			-- Added MultiSelect support below!
 			function SectionInit:CreateDropdown(Name, OptionTable, Callback, InitialValue, MultiSelect)
 				local DropdownInit = {}
 				local Dropdown = Folder.Dropdown:Clone()
@@ -872,12 +864,10 @@ function Library:CreateWindow(Config, Parent)
 	end
 	
 	-- [[ BUILT-IN SETTINGS TAB AUTO-BUILDER ]]
-	-- We use task.defer so it automatically waits until you finish creating YOUR tabs first.
-	-- This guarantees it is placed as the absolute LAST tab automatically!
 	task.defer(function()
 		local SettingsTab = WindowInit:CreateTab("Settings")
-		local ConfigSection = SettingsTab:CreateSection("Customization")
 		
+		local ConfigSection = SettingsTab:CreateSection("Customization")
 		ConfigSection:CreateSlider("UI Scale", 50, 150, 100, true, function(Value)
 			MainScale.Scale = Value / 100
 		end):AddToolTip("Scales the entire UI window")
@@ -887,10 +877,20 @@ function Library:CreateWindow(Config, Parent)
 		end):UpdateColor(Config.Color or Color3.fromRGB(255,0,0))
 		
 		local BgSection = SettingsTab:CreateSection("Background Customization")
-		
 		BgSection:CreateColorpicker("Window Background Color", function(Color)
 			Main.BackgroundColor3 = Color
-		end):UpdateColor(Main.BackgroundColor3)
+			Holder.BackgroundColor3 = Color -- Fixes the "only changes edges" issue
+		end):UpdateColor(Holder.BackgroundColor3)
+		
+		-- Look for the DropShadow to fix the "Black Shadow on White UI" issue
+		for _, child in pairs(Main:GetChildren()) do
+			if child:IsA("ImageLabel") and (child.Name:lower():find("shadow") or child.Name:lower():find("glow")) then
+				BgSection:CreateColorpicker("UI Shadow Color", function(Color)
+					child.ImageColor3 = Color
+				end):UpdateColor(child.ImageColor3)
+				break
+			end
+		end
 		
 		BgSection:CreateColorpicker("Asset Tint Color", function(Color)
 			WindowInit:SetBackgroundColor(Color)
@@ -902,41 +902,50 @@ function Library:CreateWindow(Config, Parent)
 
 		local AssetSection = SettingsTab:CreateSection("Asset Manager")
 		
-		-- File System Logic (Safeguarded)
-		local folderName = "LibraryAssets"
-		local fileName = folderName .. "/saved_assets.json"
-		local savedAssets = {"2151741365"} -- Default Asset ID
+		local defaultAssetsMap = {
+			["Default"] = "2151741365",
+			["Hearts"] = "6073763717",
+			["Abstract"] = "6073743871",
+			["Hexagon"] = "6073628839",
+			["Circles"] = "6071579801",
+			["Floral"] = "5553946656"
+		}
 		
-		if isfolder and not isfolder(folderName) then
-			pcall(makefolder, folderName)
-		end
+		local savedAssets = {} 
+		local folderName = "LibraryAssets"
+		local fileName = folderName .. "/custom_assets.json"
+		
+		if isfolder and not isfolder(folderName) then pcall(makefolder, folderName) end
 		if isfile and isfile(fileName) then
 			local success, data = pcall(function() return HttpService:JSONDecode(readfile(fileName)) end)
 			if success and type(data) == "table" then
 				savedAssets = data
 			end
-		elseif writefile then
-			pcall(function() writefile(fileName, HttpService:JSONEncode(savedAssets)) end)
 		end
 		
 		local function SaveFile()
 			if writefile then pcall(function() writefile(fileName, HttpService:JSONEncode(savedAssets)) end) end
 		end
 
+		local combinedOptions = {"Default", "Hearts", "Abstract", "Hexagon", "Circles", "Floral"}
+		for _, id in pairs(savedAssets) do table.insert(combinedOptions, id) end
+		
 		local AssetDropdown
-		AssetDropdown = AssetSection:CreateDropdown("Saved Assets", savedAssets, function(ID)
-			WindowInit:SetBackground(tostring(ID))
-		end, savedAssets[1])
+		AssetDropdown = AssetSection:CreateDropdown("Saved Assets", combinedOptions, function(Selection)
+			local actualID = defaultAssetsMap[Selection] or Selection
+			WindowInit:SetBackground(tostring(actualID))
+		end, "Default")
 		
 		local newAssetInput = ""
-		AssetSection:CreateTextBox("Add New Asset", "ID (Numbers only)", true, function(Value)
+		AssetSection:CreateTextBox("Add Custom Asset", "ID (Numbers only)", true, function(Value)
 			newAssetInput = tostring(Value)
 		end)
 		
 		AssetSection:CreateButton("Apply & Save Asset", function()
 			if newAssetInput ~= "" and newAssetInput ~= "nil" then
-				if not table.find(savedAssets, newAssetInput) then
+				if not defaultAssetsMap[newAssetInput] and not table.find(savedAssets, newAssetInput) then
 					table.insert(savedAssets, newAssetInput)
+					table.insert(combinedOptions, newAssetInput)
 					AssetDropdown:AddOption(newAssetInput)
 					SaveFile()
 				end
@@ -945,15 +954,16 @@ function Library:CreateWindow(Config, Parent)
 			end
 		end)
 		
-		AssetSection:CreateButton("Remove Selected Asset", function()
+		AssetSection:CreateButton("Remove Custom Asset", function()
 			local current = AssetDropdown:GetOption()
-			if current and current ~= "2151741365" then -- Prevents deleting the default
+			if not defaultAssetsMap[current] then 
 				AssetDropdown:RemoveOption(current)
 				local idx = table.find(savedAssets, current)
-				if idx then table.remove(savedAssets, idx) SaveFile() end
-				-- Revert to default
-				WindowInit:SetBackground("2151741365")
-				AssetDropdown:SetOption("2151741365")
+				if idx then table.remove(savedAssets, idx) end
+				SaveFile()
+				
+				WindowInit:SetBackground(defaultAssetsMap["Default"])
+				AssetDropdown:SetOption("Default")
 			end
 		end)
 	end)
