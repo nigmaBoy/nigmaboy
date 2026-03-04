@@ -1,10 +1,9 @@
 local Library = {Toggle = true,FirstTab = nil,TabCount = 0,ColorTable = {}}
-
+-- hah
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local Players = game:GetService("Players")
 
 -- Tween helper: smoothly transitions one or more properties on an instance
 local function SmoothTween(Instance, Duration, Properties)
@@ -87,11 +86,21 @@ function Library:CreateWindow(Config, Parent)
 	-- Track shadow/glow image labels
 	local ShadowColorTable = {}
 
+	-- Base color palette matching the original UI style (dark charcoal, white text, configurable accent)
+	-- These are applied immediately so the UI looks right from the first frame
+	local BaseMainColor    = Color3.fromRGB(30, 30, 30)
+	local BaseHolderColor  = Color3.fromRGB(22, 22, 22)
+	local BaseEdgeColor    = Color3.fromRGB(15, 15, 15)
+
+	Main.BackgroundColor3   = BaseMainColor
+	Holder.BackgroundColor3 = BaseHolderColor
+	EdgeStroke.Color        = BaseEdgeColor
+
 	-- Current customization state (ratios preserved)
-	local CurrentBgColor = Main.BackgroundColor3
+	local CurrentBgColor = BaseMainColor
 	local CurrentTextColor = Color3.fromRGB(255, 255, 255)
 	-- Dimmed text ratio: inputs/secondary text will be this factor of main text brightness
-	local DimTextFactor = 0.65
+	local DimTextFactor = 0.55
 
 	--[[
 	if syn and syn.protect_gui then
@@ -203,8 +212,11 @@ function Library:CreateWindow(Config, Parent)
 
 		-- Section containers follow bg with a slight offset
 		for _, data in pairs(SectionColorTable) do
+			if data.SectionFrame then
+				SmoothTween(data.SectionFrame, 0.25, {BackgroundColor3 = DarkenColor(Color, 0.78)})
+			end
 			if data.ContainerBg then
-				SmoothTween(data.ContainerBg, 0.25, {BackgroundColor3 = DarkenColor(Color, 0.75)})
+				SmoothTween(data.ContainerBg, 0.25, {BackgroundColor3 = DarkenColor(Color, 0.78)})
 			end
 		end
 	end
@@ -236,9 +248,10 @@ function Library:CreateWindow(Config, Parent)
 		end
 	end
 
-	-- Register a section's container frame for bg color tracking
-	local function RegisterSection(ContainerBg)
-		table.insert(SectionColorTable, {ContainerBg = ContainerBg})
+	-- Register a section's frames for bg color tracking
+	-- SectionFrame = the outer Section frame, ContainerBg = Section.Container
+	local function RegisterSection(SectionFrame, ContainerBg)
+		table.insert(SectionColorTable, {SectionFrame = SectionFrame, ContainerBg = ContainerBg})
 	end
 
 	function WindowInit:Toggle(State)
@@ -367,13 +380,17 @@ function Library:CreateWindow(Config, Parent)
 			-- Hide the background bar behind the section title text
 			Section.Title.BackgroundTransparency = 1
 
-			-- Register section title label text and container bg for color tracking
+			-- Register section title label text and both frames for bg color tracking
 			RegisterText(Section.Title, "TextColor3", false)
-			RegisterSection(Section.Container)
+			RegisterSection(Section, Section.Container)
 
 			Section.Container.ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 				Section.Size = UDim2.new(1, 0, 0, Section.Container.ListLayout.AbsoluteContentSize.Y + 15)
 			end)
+
+			function SectionInit:GetContainer()
+				return Section.Container
+			end
 
 			function SectionInit:CreateLabel(Name)
 				local LabelInit = {}
@@ -1054,36 +1071,83 @@ function Library:CreateWindow(Config, Parent)
 	task.defer(function()
 		local SettingsTab = WindowInit:CreateTab("Settings")
 
-		local ConfigSection = SettingsTab:CreateSection("Customization")
+		-- ── LEFT SIDE ────────────────────────────────────────────────────────────
 
-		ConfigSection:CreateTextBox("UI Scale", "50 - 150  (default: 100)", true, function(Value)
-			local num = tonumber(Value)
-			if num then
-				num = math.clamp(num, 50, 150)
-				MainScale.Scale = num / 100
+		-- "Colors" section goes left
+		local ColorsSection = SettingsTab:CreateSection("Colors")
+
+		ColorsSection:CreateColorpicker("Theme Color", function(Color)
+			WindowInit:ChangeColor(Color)
+		end):UpdateColor(Config.Color or Color3.fromRGB(220, 50, 50))
+
+		ColorsSection:CreateColorpicker("Background Color", function(Color)
+			WindowInit:ChangeBgColor(Color)
+		end):UpdateColor(CurrentBgColor)
+
+		ColorsSection:CreateColorpicker("Section Color", function(Color)
+			for _, data in pairs(SectionColorTable) do
+				if data.SectionFrame then
+					SmoothTween(data.SectionFrame, 0.25, {BackgroundColor3 = Color})
+				end
+				if data.ContainerBg then
+					SmoothTween(data.ContainerBg, 0.25, {BackgroundColor3 = Color})
+				end
 			end
-		end):AddToolTip("Type a number 50–150 to scale the UI window")
+		end):UpdateColor(DarkenColor(CurrentBgColor, 0.78))
 
-		local ToggleKeybindSection = SettingsTab:CreateSection("Toggle Keybind")
-		local ToggleKeybindLabel = ToggleKeybindSection:CreateLabel("Current keybind: RightShift")
+		ColorsSection:CreateColorpicker("Text Color", function(Color)
+			WindowInit:ChangeTextColor(Color)
+		end):UpdateColor(CurrentTextColor)
+
+		ColorsSection:CreateColorpicker("Asset Tint", function(Color)
+			WindowInit:SetBackgroundColor(Color)
+		end):UpdateColor(Holder.ImageColor3)
+
+		ColorsSection:CreateSlider("Asset Transparency", 0, 100, math.floor(Holder.ImageTransparency * 100), true, function(Value)
+			WindowInit:SetBackgroundTransparency(Value / 100)
+		end)
+
+		-- ── RIGHT SIDE ───────────────────────────────────────────────────────────
+
+		-- "Controls" section goes right — toggle keybind + unload + UI scale
+		local ControlsSection = SettingsTab:CreateSection("Controls")
+		local ControlsRawContainer = ControlsSection:GetContainer()
 
 		local CurrentToggleBind = Config.ToggleKeybind or "RightShift"
 		local WaitingForToggleBind = false
 		local ToggleBindBlacklist = {"W","A","S","D","Slash","Tab","Backspace","Escape","Space","Delete","Unknown","Backquote"}
 
-		ToggleKeybindSection:CreateButton("Set Toggle Keybind", function()
+		-- Build the keybind row from the Toggle template — matches the native keybind widget exactly
+		local ToggleTemplate = Folder.Toggle:Clone()
+		ToggleTemplate.Name = "UI Toggle Keybind T"
+		ToggleTemplate.Parent = ControlsRawContainer
+		ToggleTemplate.Title.Text = "Toggle UI"
+		ToggleTemplate.Size = UDim2.new(1, -10, 0, ToggleTemplate.Title.TextBounds.Y + 5)
+		-- Hide the toggle square, only show the keybind button
+		ToggleTemplate.Toggle.Visible = false
+		ToggleTemplate.Keybind.Visible = true
+		ToggleTemplate.Keybind.Text = "[ " .. CurrentToggleBind .. " ]"
+		RegisterText(ToggleTemplate.Title, "TextColor3", false)
+		RegisterText(ToggleTemplate.Keybind, "TextColor3", true)
+
+		ToggleTemplate.Keybind:GetPropertyChangedSignal("TextBounds"):Connect(function()
+			ToggleTemplate.Keybind.Size = UDim2.new(0, ToggleTemplate.Keybind.TextBounds.X, 1, 0)
+			ToggleTemplate.Title.Size = UDim2.new(1, -ToggleTemplate.Keybind.Size.X.Offset - 15, 1, 0)
+		end)
+
+		ToggleTemplate.Keybind.MouseButton1Click:Connect(function()
+			ToggleTemplate.Keybind.Text = "[ ... ]"
 			WaitingForToggleBind = true
-			ToggleKeybindLabel:UpdateText("Current keybind: [ press a key... ]")
-		end):AddToolTip("Click then press a key to bind UI open/close")
+		end)
 
 		UserInputService.InputBegan:Connect(function(Input, GameProcessed)
 			if WaitingForToggleBind and Input.UserInputType == Enum.UserInputType.Keyboard then
 				local Key = tostring(Input.KeyCode):gsub("Enum.KeyCode.", "")
 				if not table.find(ToggleBindBlacklist, Key) then
 					CurrentToggleBind = Key
-					ToggleKeybindLabel:UpdateText("Current keybind: " .. Key)
+					ToggleTemplate.Keybind.Text = "[ " .. Key .. " ]"
 				else
-					ToggleKeybindLabel:UpdateText("Current keybind: " .. CurrentToggleBind .. " (that key is blacklisted)")
+					ToggleTemplate.Keybind.Text = "[ " .. CurrentToggleBind .. " ]"
 				end
 				WaitingForToggleBind = false
 			elseif not WaitingForToggleBind and not GameProcessed and Input.UserInputType == Enum.UserInputType.Keyboard then
@@ -1094,50 +1158,29 @@ function Library:CreateWindow(Config, Parent)
 			end
 		end)
 
-		ConfigSection:CreateColorpicker("Theme Color", function(Color)
-			WindowInit:ChangeColor(Color)
-		end):UpdateColor(Config.Color or Color3.fromRGB(255, 0, 0))
+		ControlsSection:CreateButton("Unload UI", function()
+			WindowInit:Unload()
+		end):AddToolTip("Destroys the entire UI permanently")
 
-		ConfigSection:CreateColorpicker("Text Color", function(Color)
-			WindowInit:ChangeTextColor(Color)
-		end):UpdateColor(CurrentTextColor)
-
-		local BgSection = SettingsTab:CreateSection("Background Customization")
-
-		BgSection:CreateColorpicker("Window Background Color", function(Color)
-			WindowInit:ChangeBgColor(Color)
-		end):UpdateColor(CurrentBgColor)
-
-		-- NOTE: Shadow/glow is now automatically derived from the background color via ChangeBgColor.
-		-- No separate shadow colorpicker needed — it always stays coherent.
-
-		BgSection:CreateColorpicker("Asset Tint Color", function(Color)
-			WindowInit:SetBackgroundColor(Color)
-		end):UpdateColor(Holder.ImageColor3)
-
-		BgSection:CreateSlider("Asset Transparency", 0, 100, math.floor(Holder.ImageTransparency * 100), true, function(Value)
-			WindowInit:SetBackgroundTransparency(Value / 100)
-		end)
-
-		local SectionCustomSection = SettingsTab:CreateSection("Section Customization")
-
-		SectionCustomSection:CreateColorpicker("Section Container Color", function(Color)
-			for _, data in pairs(SectionColorTable) do
-				if data.ContainerBg then
-					SmoothTween(data.ContainerBg, 0.25, {BackgroundColor3 = Color})
-				end
+		ControlsSection:CreateTextBox("UI Scale", "50–150  (default: 100)", true, function(Value)
+			local num = tonumber(Value)
+			if num then
+				num = math.clamp(num, 50, 150)
+				MainScale.Scale = num / 100
 			end
-		end):UpdateColor(DarkenColor(CurrentBgColor, 0.75))
+		end):AddToolTip("Type a number 50–150 to scale the UI window")
+
+		-- ── RIGHT SIDE — Asset Manager ────────────────────────────────────────────
 
 		local AssetSection = SettingsTab:CreateSection("Asset Manager")
 
 		local defaultAssetsMap = {
-			["Default"] = "2151741365",
-			["Hearts"] = "6073763717",
+			["Default"]  = "2151741365",
+			["Hearts"]   = "6073763717",
 			["Abstract"] = "6073743871",
-			["Hexagon"] = "6073628839",
-			["Circles"] = "6071579801",
-			["Floral"] = "5553946656"
+			["Hexagon"]  = "6073628839",
+			["Circles"]  = "6071579801",
+			["Floral"]   = "5553946656"
 		}
 
 		local savedAssets = {}
@@ -1194,12 +1237,6 @@ function Library:CreateWindow(Config, Parent)
 				AssetDropdown:SetOption("Default")
 			end
 		end)
-
-		local DangerSection = SettingsTab:CreateSection("Danger Zone")
-
-		DangerSection:CreateButton("Unload UI", function()
-			WindowInit:Unload()
-		end):AddToolTip("Destroys the entire UI permanently")
 	end)
 
 	return WindowInit
