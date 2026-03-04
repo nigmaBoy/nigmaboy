@@ -286,9 +286,16 @@ function Library:CreateWindow(Config, Parent)
 		ChangeTextColor(Color)
 	end
 
-	function WindowInit:SetBackground(ImageId)
-		Holder.Image = "rbxassetid://" .. ImageId
-	end
+function WindowInit:SetBackground(ImageId)
+    local id = tostring(ImageId)
+    if id:find("rbxassetid://") or id:find("rbxthumb://") or id:find("rbxgameasset://") then
+        -- Already a full URL, use as-is
+        Holder.Image = id
+    else
+        -- Raw number ID, assume asset
+        Holder.Image = "rbxassetid://" .. id
+    end
+end
 
 	function WindowInit:SetBackgroundColor(Color)
 		SmoothTween(Holder, 0.25, {ImageColor3 = Color})
