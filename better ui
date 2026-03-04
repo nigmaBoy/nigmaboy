@@ -1246,7 +1246,7 @@ end
 			if writefile then pcall(function() writefile(fileName, HttpService:JSONEncode(savedAssets)) end) end
 		end
 
-		local combinedOptions = {"Default", "Hearts", "Abstract", "Hexagon", "Circles", "Floral"}
+		local combinedOptions = {"Default", "Hearts", "Abstract", "Hexagon", "Circles", "Floral", "Sunset", "Purple Planet", "Galaxy", "Night Sky", "Stars", "Purple Sky", "My Little Pony"}
 		for _, id in pairs(savedAssets) do table.insert(combinedOptions, id) end
 
 		local AssetDropdown
