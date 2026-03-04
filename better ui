@@ -1119,7 +1119,7 @@ end
 
 	-- [[ BUILT-IN SETTINGS TAB AUTO-BUILDER ]]
 	task.defer(function()
-		local SettingsTab = WindowInit:CreateTab("Settings")
+		local SettingsTab = WindowInit:CreateTab("UI Settings")
 
 		-- ── LEFT SIDE ────────────────────────────────────────────────────────────
 
