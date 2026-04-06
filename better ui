@@ -137,14 +137,10 @@ function Library:CreateWindow(Config, Parent)
 			end
 		end
 	end
-	local function ResetAll()
+local function ResetAll()
 		for _, TabButton in pairs(TBContainer:GetChildren()) do
 			if TabButton:IsA("TextButton") then
 				TabButton.BackgroundTransparency = 1
-			end
-		end
-		for _, TabButton in pairs(TBContainer:GetChildren()) do
-			if TabButton:IsA("TextButton") then
 				TabButton.Size = UDim2.new(0, 480 / Library.TabCount, 1, 0)
 			end
 		end
@@ -857,55 +853,57 @@ end
 				end
 
 				function DropdownInit:SetOption(Name)
-					if MultiSelect then
-						if type(Name) == "table" then
-							SelectedOptions = {}
-							for _, val in pairs(Name) do table.insert(SelectedOptions, val) end
-						else
-							if not table.find(SelectedOptions, Name) then table.insert(SelectedOptions, Name) end
-						end
-						for _, Option in pairs(Dropdown.Container.Holder.Container:GetChildren()) do
-							if Option:IsA("TextButton") then
-								if table.find(SelectedOptions, Option.Name) then
-									Option.BackgroundTransparency = 0
-								else
-									Option.BackgroundTransparency = 1
-								end
-							end
-						end
-						UpdateDisplayText()
-						Callback(SelectedOptions)
-					else
-						for _, Option in pairs(Dropdown.Container.Holder.Container:GetChildren()) do
-							if Option:IsA("TextButton") and string.find(Option.Name, Name) then
-								Dropdown.Container.Value.Text = Option.Name
-								Callback(Name)
-							end
-						end
-					end
+	if MultiSelect then
+		if type(Name) == "table" then
+			SelectedOptions = {}
+			for _, val in pairs(Name) do table.insert(SelectedOptions, val) end
+		else
+			if not table.find(SelectedOptions, Name) then table.insert(SelectedOptions, Name) end
+		end
+		for _, Option in pairs(Dropdown.Container.Holder.Container:GetChildren()) do
+			if Option:IsA("TextButton") then
+				if table.find(SelectedOptions, Option.Name) then
+					Option.BackgroundTransparency = 0
+				else
+					Option.BackgroundTransparency = 1
 				end
+			end
+		end
+		UpdateDisplayText()
+		Callback(SelectedOptions)
+	else
+		for _, Option in pairs(Dropdown.Container.Holder.Container:GetChildren()) do
+            -- FIX: Changed string.find to Option.Name == Name
+			if Option:IsA("TextButton") and Option.Name == Name then
+				Dropdown.Container.Value.Text = Option.Name
+				Callback(Name)
+			end
+		end
+	end
+end
 
 				function DropdownInit:RemoveOption(Name)
-					for _, Option in pairs(Dropdown.Container.Holder.Container:GetChildren()) do
-						if Option:IsA("TextButton") and string.find(Option.Name, Name) then
-							Option:Destroy()
-						end
-					end
-					if MultiSelect then
-						local index = table.find(SelectedOptions, Name)
-						if index then
-							table.remove(SelectedOptions, index)
-							UpdateDisplayText()
-							Callback(SelectedOptions)
-						end
-					end
-					Dropdown.Container.Holder.Size = UDim2.new(1, -5, 0, Dropdown.Container.Holder.Container.ListLayout.AbsoluteContentSize.Y)
-					if DropdownToggle then
-						Dropdown.Size = UDim2.new(1, -10, 0, Dropdown.Container.Holder.Container.ListLayout.AbsoluteContentSize.Y + Dropdown.Title.TextBounds.Y + 30)
-					else
-						Dropdown.Size = UDim2.new(1, -10, 0, Dropdown.Title.TextBounds.Y + 25)
-					end
-				end
+	for _, Option in pairs(Dropdown.Container.Holder.Container:GetChildren()) do
+        -- FIX: Changed string.find to Option.Name == Name
+		if Option:IsA("TextButton") and Option.Name == Name then
+			Option:Destroy()
+		end
+	end
+	if MultiSelect then
+		local index = table.find(SelectedOptions, Name)
+		if index then
+			table.remove(SelectedOptions, index)
+			UpdateDisplayText()
+			Callback(SelectedOptions)
+		end
+	end
+	Dropdown.Container.Holder.Size = UDim2.new(1, -5, 0, Dropdown.Container.Holder.Container.ListLayout.AbsoluteContentSize.Y)
+	if DropdownToggle then
+		Dropdown.Size = UDim2.new(1, -10, 0, Dropdown.Container.Holder.Container.ListLayout.AbsoluteContentSize.Y + Dropdown.Title.TextBounds.Y + 30)
+	else
+		Dropdown.Size = UDim2.new(1, -10, 0, Dropdown.Title.TextBounds.Y + 25)
+	end
+end
 
 				function DropdownInit:AddOption(OptionName)
 					AddOptionLogic(OptionName)
