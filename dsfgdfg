@@ -4806,6 +4806,7 @@ LPH_JIT_MAX(function() -- Main Cheat
         maxtime = 1,
     }
     local raging = false
+    local isPathing = false -- debounce: don't start a new path while one is in progress
     local function initKnifeBot()
         local nextScan = 0
         raging = true
@@ -4847,18 +4848,32 @@ LPH_JIT_MAX(function() -- Main Cheat
                                         finalTargetPos = targetPos
                                     
                                     -- TELEPORT RAGEBOT LOGIC
-                                    elseif isRage then
+                                    -- TELEPORT RAGEBOT LOGIC
+                                    elseif isRage and not isPathing then
                                         local velocity = entry._velspring and entry._velspring.t or Vector3.zero
                                         local predictedPos = targetPos + (velocity * 0.25)
-                                        
-                                        local result, data = pathfinding.floorAStar({
-                                            start = startPos,
-                                            goal = predictedPos,
-                                            parameters = pathfindingParams
-                                        })
-                                        
-                                        if result == true then
-                                            local path = pathfinding.optimizePath(data.waypoints, 9.9)
+
+                                        -- Run pathfinding off the heartbeat thread to prevent frame hitching
+                                        isPathing = true
+                                        local pathResult, pathData
+                                        task.spawn(function()
+                                            pathResult, pathData = pathfinding.floorAStar({
+                                                start = startPos,
+                                                goal = predictedPos,
+                                                parameters = pathfindingParams
+                                            })
+                                            isPathing = false
+                                        end)
+
+                                        -- Wait for pathfinding to finish, but cap the wait so we don't hang forever
+                                        local pfWaitStart = os.clock()
+                                        while isPathing and (os.clock() - pfWaitStart) < 0.5 do
+                                            runService.Heartbeat:Wait()
+                                        end
+                                        isPathing = false -- ensure reset
+
+                                        if pathResult == true then
+                                            local path = pathfinding.optimizePath(pathData.waypoints, 9.9)
 
                                             teleporting = true
                                             TPfailed = false
@@ -4871,7 +4886,7 @@ LPH_JIT_MAX(function() -- Main Cheat
                                                 time = nil
                                             }
 
-                                            local waitStart = clock
+                                            local waitStart = os.clock()
                                             repeat
                                                 runService.Heartbeat:Wait()
                                                 if os.clock() - waitStart > 1.5 or not charInterface.isAlive() then
@@ -4879,7 +4894,7 @@ LPH_JIT_MAX(function() -- Main Cheat
                                                     TPfailed = true
                                                     break
                                                 end
-                                                
+
                                                 local currentEnemyPos = entry._receivedPosition or predictedPos
                                                 if (newSpawnCache.lastUpdate - currentEnemyPos).Magnitude < 10 then
                                                     teleporting = false
@@ -4906,17 +4921,24 @@ LPH_JIT_MAX(function() -- Main Cheat
                                         end
                                         
                                         -- BACKSTAB SPOOFING
-                                        local hitPart = "Head"
+                                        -- BACKSTAB SPOOFING
+                                        -- In PF, backstabs are Torso hits registered from behind the target.
+                                        -- We always use Torso so the server registers a backstab multiplier.
+                                        local hitPart = "Torso"
                                         local hitPos = finalTargetPos
                                         if wapus:GetValue("Knife Bot", "Always Backstab") then
-                                            hitPart = "Torso"
-                                            local lookVec = (entry._thirdPersonObject and entry._thirdPersonObject._rootPart) and entry._thirdPersonObject._rootPart.CFrame.LookVector or Vector3.new(0,0,1)
-                                            hitPos = finalTargetPos - (lookVec * 1.5) -- Spoof hit position physically on their back
-                                            
-                                            -- Briefly spoof our server-sided rotation to stare directly at their back
-                                            local backAngle = CFrame.new(newSpawnCache.lastUpdate, finalTargetPos).LookVector
-                                            local rx, ry, rz = toanglesyx(backAngle)
-                                            local spoofAngles = Vector3.new(rx, ry, rz)
+                                            -- Get the direction the enemy is facing, then place our hit position
+                                            -- behind them (positive LookVector = their forward, so behind = +LookVector offset)
+                                            local rootCF = entry._thirdPersonObject and entry._thirdPersonObject._rootPart and entry._thirdPersonObject._rootPart.CFrame
+                                            local lookVec = rootCF and rootCF.LookVector or Vector3.new(0, 0, 1)
+                                            -- Hit position is placed 1 stud behind the target (behind = in the direction they face)
+                                            hitPos = finalTargetPos + (lookVec * 1.2)
+
+                                            -- Spoof our own angle so the server thinks we're attacking from behind
+                                            -- We want to be "behind" them, meaning our look direction matches their look direction
+                                            local behindAngle = CFrame.new(hitPos, hitPos + lookVec).LookVector
+                                            local rx, ry, _ = toanglesyx(behindAngle)
+                                            local spoofAngles = Vector3.new(rx, ry, 0)
                                             send(network, "repupdate", newSpawnCache.lastUpdate, spoofAngles, spoofAngles, network.getTime())
                                             task.wait(0.02)
                                         end
