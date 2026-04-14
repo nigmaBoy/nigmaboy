@@ -4799,15 +4799,18 @@ LPH_JIT_MAX(function() -- Main Cheat
     end
 
     local pathfindingParams = {
-        step = 3,
+        step = 6,
         trials = 1/0,
-        weighting = 400,
-        mindist = 23,
-        maxtime = 1,
+        weighting = 800,
+        mindist = 20,
+        maxtime = 0.2,
     }
     local raging = false
+    local pathfindFails = {} -- Added to stop CPU lag from unreachable players
+
     local function initKnifeBot()
         local nextScan = 0
+        local killDelay = 0.1 -- Delay between kills to prevent "Bad Data" speed flagging
         raging = true
 
         while raging do
@@ -4815,87 +4818,94 @@ LPH_JIT_MAX(function() -- Main Cheat
             local root = charInterface.getCharacterObject()
             root = root and root:getRealRootPart()
 
+            -- Clean up old pathfind fails to free memory
+            for plr, timeFailed in pairs(pathfindFails) do
+                if clock - timeFailed > 3 then
+                    pathfindFails[plr] = nil
+                end
+            end
+
             if root then
                 newSpawnCache.init = true
 
                 if newSpawnCache.spawned and newSpawnCache.lastUpdate and (clock - newSpawnCache.spawnTime) > 1 and (nextScan - clock) <= 0 and not roundSystem.roundLock and ((not wapus:GetValue("Knife Bot", "Only When Holding Knife")) or (newSpawnCache.slot == 3)) then
-                    local closestCharacters = getClosestPlayers(newSpawnCache.lastUpdate, true, wapus:GetValue("Knife Bot", "Only Kill Target Status"), wapus:GetValue("Knife Bot", "Whitelist Friendly Status"))
+                    
+                    if not teleporting then -- Don't scan if we are currently teleporting
+                        local closestCharacters = getClosestPlayers(newSpawnCache.lastUpdate, true, wapus:GetValue("Knife Bot", "Only Kill Target Status"), wapus:GetValue("Knife Bot", "Whitelist Friendly Status"))
 
-                    if closestCharacters then
-                        for entryIndex = 1, #closestCharacters do
-                            local entry = closestCharacters[entryIndex]
-                            local position = entry._receivedPosition
-                            local targetPlayer = entry._player
+                        if closestCharacters then
+                            for entryIndex = 1, #closestCharacters do
+                                local entry = closestCharacters[entryIndex]
+                                local position = entry._receivedPosition
+                                local targetPlayer = entry._player
 
-                            if position then
-                                local result, data = pathfinding.floorAStar({
-                                    start = newSpawnCache.lastUpdate,
-                                    goal = position,
-                                    parameters = pathfindingParams
-                                })
-                                runService.RenderStepped:Wait()
+                                -- Skip if we recently failed to pathfind to this player
+                                if position and targetPlayer and not pathfindFails[targetPlayer] then
+                                    local result, data = pathfinding.floorAStar({
+                                        start = newSpawnCache.lastUpdate,
+                                        goal = position,
+                                        parameters = pathfindingParams
+                                    })
+                                    runService.Heartbeat:Wait()
 
-                                if result == true then
-                                    local path = pathfinding.optimizePath(data.waypoints, 9.9)
-                                    local origin = newSpawnCache.lastUpdate
+                                    if result == true then
+                                        local path = pathfinding.optimizePath(data.waypoints, 9.9)
+                                        local origin = newSpawnCache.lastUpdate
 
-                                    -- Capture the exact entry position at the moment we start teleporting
-                                    -- so the hit position matches where they actually were when we sent the packets
-                                    local capturedPosition = entry._receivedPosition
-                                    local capturedPlayer = targetPlayer
+                                        local capturedPosition = entry._receivedPosition
+                                        local capturedPlayer = targetPlayer
 
-                                    teleporting = true
-                                    TPfailed = false
-                                    teleportData = {
-                                        teleportPosition = path[#path],
-                                        player = capturedPlayer,
-                                        length = #path,
-                                        path = path,
-                                        index = 1,
-                                        time = nil
-                                    }
+                                        teleporting = true
+                                        TPfailed = false
+                                        teleportData = {
+                                            teleportPosition = path[#path],
+                                            player = capturedPlayer,
+                                            length = #path,
+                                            path = path,
+                                            index = 1,
+                                            time = nil
+                                        }
 
-                                    -- Wait for teleport to complete without stalling the full heartbeat loop
-                                    local waitStart = clock
-                                    repeat
-                                        runService.Heartbeat:Wait()
-                                        -- safety timeout: if teleport takes more than 3s, abort
-                                        if os.clock() - waitStart > 3 then
-                                            teleporting = false
-                                            TPfailed = true
-                                            break
-                                        end
-                                    until not teleporting
+                                        local waitStart = clock
+                                        repeat
+                                            runService.Heartbeat:Wait()
+                                            if os.clock() - waitStart > 3 then
+                                                teleporting = false
+                                                TPfailed = true
+                                                break
+                                            end
+                                        until not teleporting
 
-                                    if not TPfailed then
-                                        -- Re-sample position after teleport lands so the hit pos is fresh
-                                        local freshPosition = entry._receivedPosition or capturedPosition
-                                        local netTime = network.getTime() + newSpawnCache.latency + newSpawnCache.currentAddition
+                                        if not TPfailed then
+                                            local freshPosition = entry._receivedPosition or capturedPosition
+                                            local netTime = network.getTime() + newSpawnCache.latency + newSpawnCache.currentAddition
 
-                                        -- Send equip knife first so server knows we're holding it
-                                        if newSpawnCache.slot ~= 3 then
-                                            send(network, "equip", 3, netTime)
-                                            -- Small yield so server processes equip before stab
-                                            task.wait(0.05)
-                                            netTime = network.getTime() + newSpawnCache.latency + newSpawnCache.currentAddition
-                                        end
+                                            if newSpawnCache.slot ~= 3 then
+                                                send(network, "equip", 3, netTime)
+                                                task.wait(0.1) -- Yield so server registers equip (stops bad data)
+                                            end
 
-                                        -- Send stab + knifehit with updated time
-                                        for _ = 1, 2 do
+                                            -- Send EXACTLY ONE stab and hit packet. (Torso is safer than Head)
                                             send(network, "stab")
-                                            send(network, "knifehit", capturedPlayer, "Head", freshPosition, network.getTime() + newSpawnCache.latency + newSpawnCache.currentAddition)
-                                            task.wait(0.03)
+                                            send(network, "knifehit", capturedPlayer, "Torso", freshPosition, network.getTime() + newSpawnCache.latency + newSpawnCache.currentAddition)
+
+                                            killedPlayers[capturedPlayer] = true
+                                            task.delay(killDelay, function()
+                                                killedPlayers[capturedPlayer] = false
+                                            end)
+
+                                            nextScan = os.clock() + killDelay -- Enforce strict delay between kills
+                                        else
+                                            nextScan = os.clock() + 0.2
                                         end
 
-                                        killedPlayers[capturedPlayer] = true
-                                        task.delay(killCooldownMS * 0.001, function()
-                                            killedPlayers[capturedPlayer] = false
-                                        end)
+                                        TPfailed = false
+                                        break -- Successfully attacked, break the loop to wait for next scan
+                                    else
+                                        -- Pathfinding failed (player behind wall, unreachable, etc).
+                                        -- Cache the fail so we don't lag out trying to pathfind to them 60 times a second.
+                                        pathfindFails[targetPlayer] = os.clock()
                                     end
-
-                                    TPfailed = false
-                                    nextScan = os.clock() + rageScanDelayMS * 0.001
-                                    break
                                 end
                             end
                         end
