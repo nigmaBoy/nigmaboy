@@ -4799,18 +4799,18 @@ LPH_JIT_MAX(function() -- Main Cheat
     end
 
     local pathfindingParams = {
-        step = 3,
+        step = 2,
         trials = 1/0,
         weighting = 400,
-        mindist = 23,
-        maxtime = 1,
+        mindist = 20,
+        maxtime = 0.4,
     }
     local raging = false
     local pathfindFails = {} -- Added to stop CPU lag from unreachable players
 
     local function initKnifeBot()
         local nextScan = 0
-        local killDelay = 0.85 -- Delay between kills to prevent "Bad Data" speed flagging
+        local killDelay = 0.01 -- Delay between kills to prevent "Bad Data" speed flagging
         raging = true
 
         while raging do
