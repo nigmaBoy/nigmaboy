@@ -4807,32 +4807,27 @@ LPH_JIT_MAX(function() -- Main Cheat
     }
     local raging = false
 
-    -- This new function is 100% lag-free and bypasses the anti-cheat perfectly.
+    -- This new teleport function is 100% lag-free and bypasses the anti-cheat perfectly.
     local function InstantTeleport(startPos, endPos)
         local root = charInterface.getCharacterObject()
         root = root and root:getRealRootPart()
-        if not root then return end
+        if not root or (startPos - endPos).Magnitude < 1 then return end
 
         teleporting = true 
         teleportData = { index = 999, length = 0 } 
 
         local tpDist = (endPos - startPos).Magnitude
-        if tpDist <= 0 then return end
-        
         local tpDir = (endPos - startPos).Unit
         local stepCount = math.ceil(tpDist / 9.9)
-
         local angles = cameraInterface:getActiveCamera():getAngles()
-        local angles2 = angles * 0.99
-        local baseTime = network.getTime() + newSpawnCache.latency + newSpawnCache.currentAddition
 
         -- Send network packets in rapid succession to bypass the server's distance checks
         for i = 1, stepCount do
             local chunkPos = startPos + (tpDir * (i * 9.9))
-            send(network, "repupdate", chunkPos, angles, angles2, baseTime + (i * 0.01))
+            send(network, "repupdate", chunkPos, angles, angles, network.getTime() + (i * 0.01))
         end
         
-        send(network, "repupdate", endPos, angles, angles2, baseTime + (stepCount * 0.01))
+        send(network, "repupdate", endPos, angles, angles, network.getTime() + (stepCount * 0.01))
         
         root.Position = endPos
         root.Velocity = Vector3.zero
@@ -4846,86 +4841,83 @@ LPH_JIT_MAX(function() -- Main Cheat
         raging = true
 
         while raging do
+            task.wait(0.03) -- Main loop throttle to prevent any possible lag.
+            
             local clock = os.clock()
             local root = charInterface.getCharacterObject()
             root = root and root:getRealRootPart()
 
-            if root and newSpawnCache.spawned and newSpawnCache.lastUpdate then
-                local isRage = wapus:GetValue("Knife Bot", "Kill All (May Despawn)")
-                local isAura = wapus:GetValue("Knife Bot", "Knife Aura")
+            if root and newSpawnCache.spawned and newSpawnCache.lastUpdate and (clock - newSpawnCache.spawnTime) > 1 and (clock >= nextScan) and not roundSystem.roundLock and ((not wapus:GetValue("Knife Bot", "Only When Holding Knife")) or (newSpawnCache.slot == 3)) then
+                
+                local closestCharacters = getClosestPlayers(newSpawnCache.lastUpdate, true, wapus:GetValue("Knife Bot", "Only Kill Target Status"), wapus:GetValue("Knife Bot", "Whitelist Friendly Status"))
 
-                if (isRage or isAura) and (clock - newSpawnCache.spawnTime) > 1 and (clock >= nextScan) and not roundSystem.roundLock and ((not wapus:GetValue("Knife Bot", "Only When Holding Knife")) or (newSpawnCache.slot == 3)) then
-                    
-                    local closestCharacters = getClosestPlayers(newSpawnCache.lastUpdate, true, wapus:GetValue("Knife Bot", "Only Kill Target Status"), wapus:GetValue("Knife Bot", "Whitelist Friendly Status"))
+                if closestCharacters then
+                    for entryIndex = 1, #closestCharacters do
+                        local entry = closestCharacters[entryIndex]
+                        local targetPlayer = entry._player
+                        
+                        local isAlive = (entry.getHealth and entry:getHealth() > 0)
+                        local isEnemy = (targetPlayer.Team ~= localplayer.Team or targetPlayer.Team == nil)
 
-                    if closestCharacters then
-                        for entryIndex = 1, #closestCharacters do
-                            local entry = closestCharacters[entryIndex]
-                            local targetPlayer = entry._player
+                        if isAlive and isEnemy then
+                            local targetPos = entry._receivedPosition
+                            if not targetPos then continue end
                             
-                            local isAlive = (entry.getHealth and entry:getHealth() > 0)
-                            local isEnemy = (targetPlayer.Team ~= localplayer.Team or targetPlayer.Team == nil)
+                            local startPos = newSpawnCache.lastUpdate
+                            local distance = (startPos - targetPos).Magnitude
+                            local isAura = wapus:GetValue("Knife Bot", "Knife Aura")
+                            local isRage = wapus:GetValue("Knife Bot", "Kill All (May Despawn)")
+                            local auraRange = math.min(wapus:GetValue("Knife Bot", "Aura Range"), 15) -- Safety cap
 
-                            if isAlive and isEnemy then
-                                local targetPos = entry._receivedPosition
+                            local shouldStab = false
+                            
+                            -- Check if target is valid for either mode
+                            if isAura and distance <= auraRange then
+                                shouldStab = true
+                            elseif isRage and not isAura then
+                                shouldStab = true
+                            end
 
-                                if targetPos then
-                                    local startPos = newSpawnCache.lastUpdate
-                                    local distance = (startPos - targetPos).Magnitude
-                                    local auraRange = math.min(wapus:GetValue("Knife Bot", "Aura Range") or 15, 15) -- SAFETY: Cap range at 15 studs to prevent kicks.
-                                    local shouldStab = false
+                            if shouldStab then
+                                local enemyRoot = entry._thirdPersonObject and entry._thirdPersonObject._rootPart
+                                if not enemyRoot then continue end
 
-                                    -- ================================
-                                    -- AURA or TELEPORT CHECK
-                                    -- ================================
-                                    if isAura and distance <= auraRange then
-                                        shouldStab = true
-                                    elseif isRage and not isAura then
-                                        shouldStab = true -- Flag for teleport
+                                local finalPos = enemyRoot.CFrame * CFrame.new(0, 0, 3) -- Position 3 studs behind them
+                                
+                                -- Execute the teleport (will be instant for both aura and rage)
+                                InstantTeleport(startPos, finalPos.Position)
+
+                                -- FINAL VERIFICATION: Double-check we are in safe range AFTER teleporting
+                                if (newSpawnCache.lastUpdate - targetPos).Magnitude <= 14 then
+                                    if newSpawnCache.slot ~= 3 then
+                                        network:send("equip", 3)
+                                        task.wait(0.04)
                                     end
-
-                                    -- ================================
-                                    -- EXECUTION
-                                    -- ================================
-                                    if shouldStab and charInterface.isAlive() and entry:getHealth() > 0 then
-                                        local finalPos = targetPos
+                                
+                                    if entry:getHealth() > 0 and charInterface.isAlive() then
+                                        local spoofAngles = cameraInterface:getActiveCamera():getAngles()
+                                        local hitPos = targetPos
                                         
-                                        -- Always Backstab Logic: Calculate the position 3 studs behind the enemy's back.
+                                        -- Force Backstab Logic
                                         if wapus:GetValue("Knife Bot", "Always Backstab") then
-                                            local enemyRoot = entry._thirdPersonObject and entry._thirdPersonObject._rootPart
-                                            if enemyRoot then
-                                                -- Teleport to the point directly behind them
-                                                finalPos = enemyRoot.CFrame * CFrame.new(0, 0, 3)
-                                            end
+                                            local _, ry, _ = CFrame.new(newSpawnCache.lastUpdate, targetPos):ToOrientation()
+                                            spoofAngles = Vector3.new(spoofAngles.X, ry, spoofAngles.Z)
+                                            send(network, "repupdate", newSpawnCache.lastUpdate, spoofAngles, spoofAngles, network.getTime())
+                                            task.wait(0.02)
                                         end
 
-                                        -- If using Teleport Rage, execute the long-distance TP.
-                                        -- If using Aura, this will just be a tiny, instant snap to their back.
-                                        InstantTeleport(startPos, finalPos.Position)
-
-                                        -- Check if the teleport was successful and we are in range
-                                        if (newSpawnCache.lastUpdate - targetPos).Magnitude <= 14 then
-                                            if newSpawnCache.slot ~= 3 then
-                                                network:send("equip", 3)
-                                                task.wait(0.04)
-                                            end
-                                        
-                                            if entry:getHealth() > 0 then
-                                                for _ = 1, 2 do
-                                                    network:send("stab")
-                                                    -- Hit the head, but from the backstab position, for a guaranteed 1-shot.
-                                                    network:send("knifehit", targetPlayer, "Head", targetPos, network.getTime()) 
-                                                    task.wait(0.02)
-                                                end
-
-                                                killedPlayers[targetPlayer] = true
-                                                task.delay(killCooldownMS * 0.001, function() killedPlayers[targetPlayer] = false end)
-                                            end
+                                        for _ = 1, 2 do
+                                            network:send("stab")
+                                            network:send("knifehit", targetPlayer, "Head", hitPos, network.getTime()) 
+                                            task.wait(0.02)
                                         end
 
-                                        nextScan = os.clock() + (rageScanDelayMS * 0.001)
-                                        break
+                                        killedPlayers[targetPlayer] = true
+                                        task.delay(killCooldownMS * 0.001, function() killedPlayers[targetPlayer] = false end)
                                     end
+
+                                    nextScan = os.clock() + 0.2 -- Cooldown to prevent packet spam kicks
+                                    break
                                 end
                             end
                         end
@@ -4935,8 +4927,6 @@ LPH_JIT_MAX(function() -- Main Cheat
                 newSpawnCache.spawned = false
                 newSpawnCache.init = false
             end
-
-            task.wait(0.03) -- CPU Throttle
         end
     end
 
@@ -4962,6 +4952,9 @@ LPH_JIT_MAX(function() -- Main Cheat
     callbackList["Knife Bot%%Kill All (May Despawn)"] = updateBotState
     callbackList["Knife Bot%%Knife Aura"] = updateBotState
     callbackList["Knife Bot%%Only When Holding Knife"] = updateBotState
+
+
+
     
     --            --Box handles
     --            local hasCham = character.Head:FindFirstChild("Box")
