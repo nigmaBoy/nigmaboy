@@ -1,0 +1,274 @@
+    local astar = {
+        raycastInterval = Vector3.new(3, 3.75, 3), -- Vector3.new(5, 3.75, 3) i changed for clanker  studs
+        raycastThickness = 2, -- studs
+        maxAirMovement = 8, -- studs (increasing might cause lag)
+        maxTime = 3.5, -- seconds
+        minFrameRate = 3, -- frames/second
+        ignoreList = {workspace.Terrain, workspace.Ignore, workspace.Players, workspace.CurrentCamera},
+    }
+    
+    do -- pathfinding library
+        local directionOffsets = {
+            first = {
+                Vector3.new(1, 0, 0),
+                Vector3.new(-1, 0, 0),
+                Vector3.new(0, 1, 0),
+                Vector3.new(0, -1, 0),
+                Vector3.new(0, 0, 1),
+                Vector3.new(0, 0, -1)
+            },
+            second = {
+                Vector3.new(1, 0, 1),
+                Vector3.new(1, 0, -1),
+                Vector3.new(-1, 0, 1),
+                Vector3.new(-1, 0, -1),
+                Vector3.new(1, 1, 0),
+                Vector3.new(1, -1, 0),
+                Vector3.new(-1, 1, 0),
+                Vector3.new(-1, -1, 0),
+                Vector3.new(0, 1, 1),
+                Vector3.new(0, -1, 1),
+                Vector3.new(0, 1, -1),
+                Vector3.new(0, -1, -1)
+            },
+            third = {
+                Vector3.new(1, 1, 1),
+                Vector3.new(1, -1, 1),
+                Vector3.new(-1, 1, 1),
+                Vector3.new(-1, -1, 1),
+                Vector3.new(1, 1, -1),
+                Vector3.new(1, -1, -1),
+                Vector3.new(-1, 1, -1),
+                Vector3.new(-1, -1, -1)
+            }
+        }
+        
+        local function distance(pos0, pos1)
+            return (pos0 - pos1).Magnitude
+        end
+        
+        local raycastparameters = RaycastParams.new()
+        raycastparameters.IgnoreWater = true
+        local function raycast(origin, direction, filterlist, whitelist)
+            raycastparameters.FilterDescendantsInstances = filterlist or astar.ignoreList
+            raycastparameters.FilterType = Enum.RaycastFilterType[whitelist and "Whitelist" or "Blacklist"]
+            local result = workspace:Raycast(origin, direction, raycastparameters)
+            return result and result.Instance, result and result.Position, result and result.Normal
+        end
+
+        local function thickRaycast(thickness, origin, direction, filterlist, whitelist)
+            local cframe = CFrame.new(origin, origin + direction)
+            
+            for index = 1, 4 do
+                local offset = ((((index == 1) or (index == 4)) and 0.5) or -0.5) * thickness
+                offset = ((index < 3 and Vector3.yAxis) or Vector3.xAxis) * offset
+                local hit, pos, norm = raycast(cframe * offset, direction, filterlist, whitelist)
+                
+                if hit then
+                    return hit, pos, norm
+                end
+            end
+            
+            return nil, nil, nil
+        end
+        
+        local maxStudsOffGround = 4
+        local function isGrounded(pos)
+            return raycast(pos, Vector3.yAxis * -maxStudsOffGround) ~= nil
+        end
+        astar.raycast = raycast
+        astar.thickRaycast = thickRaycast
+        
+        local function getAirDistance(node)
+            local traveled = 0
+            
+            while (not node.grounded) and node.lastNode do
+                local firstPosition = node.lastNode.position
+                local secondPosition = node.position
+                
+                if (secondPosition.Y < firstPosition.Y) then -- allow for falling (uhhhhhhh i dont think this works idk why)
+                    secondPosition = Vector3.new(secondPosition.X, firstPosition.Y - 0.001, secondPosition.Z)
+                end
+                
+                traveled += distance(secondPosition, firstPosition)
+                node = node.lastNode
+            end
+            
+            return traveled
+        end
+        
+        local function shortenPath(path, thickness)
+            local positions = {path[1].position}
+            local lastPosition = path[1].position
+            
+            local jumped = false
+            for index = 3, #path do
+                local lastNode = path[index - 1]
+                local node = path[index]
+                local position = node.position
+                
+                local jumping = false
+                if not node.grounded then
+                    if (not jumped) and ((position.Y - lastPosition.Y) > maxStudsOffGround) then
+                        jumping = true
+                        jumped = true
+                    end
+                else
+                    jumped = false
+                end
+
+                if jumping or thickRaycast(thickness, lastPosition, position - lastPosition) then
+                    lastPosition = lastNode.position
+                    table.insert(positions, lastPosition)
+                end
+            end
+            
+            table.insert(positions, path[#path].position)
+            
+            return positions
+        end
+        
+        local function lengthenPath(path, interval)
+            local positions = {path[1]}
+            local totalDistance = 0
+            
+            for pathIndex = 2, #path do
+                local lastPosition = path[pathIndex - 1]
+                local position = path[pathIndex]
+                local travelDistance = distance(lastPosition, position)
+                local offset = (position - lastPosition).Unit * interval
+                
+                for index = 1, math.floor(travelDistance / interval) do
+                    table.insert(positions, lastPosition + (offset * index))
+                end
+
+                totalDistance += travelDistance
+                table.insert(positions, position)
+            end
+            
+            return positions, totalDistance
+        end
+
+        local runService = game:GetService("RunService")
+        function astar:findPath(origin, target, pathInterval, maxOffset) -- unlike my last pathfinding, this includes the origin
+            local startTime = tick()
+            local maxTime = startTime + self.maxTime
+            local delta = 1 / self.minFrameRate
+            local raycastInterval = self.raycastInterval
+            local raycastThickness = self.raycastThickness
+            local travelDistance = nil
+            local runTime = nil
+            local path = nil
+            local nodes = {}
+
+            maxOffset = math.max(maxOffset, (3 ^ 0.5 * raycastInterval).Magnitude + 0.1)
+            
+            local firstNode = {
+                offset = Vector3.zero,
+                hcost = distance(origin, target),
+                position = origin,
+                scanned = false,
+                grounded = true, 
+                lastNode = nil,
+                gcost = 0,
+            }
+            firstNode.fcost = firstNode.hcost
+            nodes[Vector3.zero] = firstNode
+            
+            local nextRender = startTime + delta
+            while true do
+                local time = tick()
+
+                if time > maxTime then
+                    runTime = time - startTime
+                    break
+                elseif time > nextRender then
+                    nextRender = nextRender + delta
+                    runService.RenderStepped:Wait()
+                end
+
+                local lowest = math.huge
+                local currentNode = nil
+                
+                for _, node in nodes do
+                    if (node.fcost < lowest) and not node.scanned then
+                        lowest = node.fcost
+                        currentNode = node
+                    end
+                end
+                
+                if currentNode then
+                    if currentNode.hcost > maxOffset then
+                        for offsetType, offsets in directionOffsets do
+                            for _, offset in offsets do
+                                offset *= raycastInterval
+                                local offsetIndex = currentNode.offset + offset
+                                local offsetMagnitude = offset.Magnitude
+                                local offsetNode = nodes[offsetIndex]
+                                
+                                if thickRaycast(raycastThickness, currentNode.position, offset) == nil then
+                                    if offsetNode then
+                                        if offsetNode.gcost > (currentNode.gcost + offsetMagnitude) then -- erm do i need an air check here cuz it doesnt seem like it
+                                            offsetNode.gcost = currentNode.gcost + offsetMagnitude
+                                            offsetNode.fcost = offsetNode.gcost + offsetNode.hcost
+                                            offsetNode.lastnode = currentNode
+                                        end
+                                    else
+                                        local grounded = isGrounded(currentNode.position + offset)
+                                        
+                                        if grounded or ((getAirDistance(currentNode) + offsetMagnitude) <= self.maxAirMovement) then
+                                            offsetNode = {
+                                                offset = offsetIndex,
+                                                lastNode = currentNode,
+                                                gcost = currentNode.gcost + offsetMagnitude,
+                                                position = currentNode.position + offset,
+                                                grounded = grounded,
+                                                scanned = false,
+                                            }
+                                            offsetNode.hcost = distance(offsetNode.position, target)
+                                            offsetNode.fcost = offsetNode.gcost + offsetNode.hcost
+                                            nodes[offsetIndex] = offsetNode
+                                        end
+                                    end
+                                end 
+                            end
+                        end
+                    else
+                        path = {}
+                        
+                        while currentNode.lastNode do
+                            table.insert(path, 1, currentNode)
+                            currentNode = currentNode.lastNode
+                        end
+
+                        table.insert(path, 1, currentNode)
+                        path[#path].position = target
+
+                        --local endPosition = path[#path - 1].position
+                        --if raycast(endPosition, target - endPosition) == nil then
+                        --    path[#path].position = target
+                        --end
+                        
+                        if #path < 3 then
+                            path = {origin, target}
+                            travelDistance = distance(origin, target)
+                        else
+                            path = shortenPath(path, raycastThickness)
+                            path, travelDistance = lengthenPath(path, pathInterval)
+                        end
+                        
+                        runTime = time - startTime
+                        break
+                    end
+                    
+                    currentNode.scanned = true
+                else
+                    runTime = time - startTime
+                    break
+                end
+            end
+            
+            return path, travelDistance, runTime
+        end
+    end
+    return astar
