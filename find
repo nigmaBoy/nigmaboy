@@ -1,9 +1,9 @@
     local astar = {
-        raycastInterval = Vector3.new(3, 3.75, 3), -- Vector3.new(5, 3.75, 3) i changed for clanker  studs
-        raycastThickness = 2, -- studs
-        maxAirMovement = 8, -- studs (increasing might cause lag)
+        raycastInterval = Vector3.new(2, 2, 2), -- Vector3.new(5, 3.75, 3) i changed for clanker  studs
+        raycastThickness = 1.5, -- studs
+        maxAirMovement = 20, -- studs (increasing might cause lag)
         maxTime = 3.5, -- seconds
-        minFrameRate = 3, -- frames/second
+        minFrameRate = 30, -- frames/second
         ignoreList = {workspace.Terrain, workspace.Ignore, workspace.Players, workspace.CurrentCamera},
     }
     
