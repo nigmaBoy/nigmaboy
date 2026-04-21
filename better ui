@@ -303,19 +303,24 @@ end
 	end
 
 	-- Unload: destroys the entire UI and cleans up
-	function WindowInit:Unload()
-		Screen:Destroy()
-		Library.Toggle = false
-		Library.TabCount = 0
-		Library.FirstTab = nil
-		Library.ColorTable = {}
-	end
+function WindowInit:Unload()
+    ToolTipConnection:Disconnect()
+    Screen:Destroy()
+    Library.Toggle = false
+    Library.TabCount = 0
+    Library.FirstTab = nil
+    Library.ColorTable = {}
+end
 
-	RunService.RenderStepped:Connect(function()
-		if Library.Toggle then
-			Screen.ToolTip.Position = UDim2.new(0, UserInputService:GetMouseLocation().X + 10, 0, UserInputService:GetMouseLocation().Y - 5)
-		end
-	end)
+-- Store the connection so we can disconnect it on Unload
+local ToolTipConnection = RunService.RenderStepped:Connect(function()
+    if Library.Toggle then
+        local ToolTip = Screen:FindFirstChild("ToolTip")
+        if ToolTip and Screen.Parent then
+            ToolTip.Position = UDim2.new(0, UserInputService:GetMouseLocation().X + 10, 0, UserInputService:GetMouseLocation().Y - 5)
+        end
+    end
+end)
 
 	function WindowInit:CreateTab(Name)
 		local TabInit = {}
