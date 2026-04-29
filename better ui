@@ -412,21 +412,40 @@ function Library:CreateWindow(Config, Parent)
 			end
 
 			function SectionInit:CreateLabel(Name)
-				local LabelInit = {}
-				local Label = Folder.Label:Clone()
-				Label.Name = Name .. " L"
-				Label.Parent = Section.Container
-				Label.Text = Name
-				Label.Size = UDim2.new(1, -10, 0, Label.TextBounds.Y)
+    local LabelInit = {}
+    local Label = Folder.Label:Clone()
+    Label.Name = Name .. " L"
+    Label.Parent = Section.Container
+    Label.Text = Name
+    
+    -- Use TextWrapped + automatic sizing instead of TextBounds
+    Label.TextWrapped = true
+    Label.Size = UDim2.new(1, -10, 0, 0)  -- Let it auto-size vertically
 
-				RegisterText(Label, "TextColor3", false)
+    RegisterText(Label, "TextColor3", false)
 
-				function LabelInit:UpdateText(Text)
-					Label.Text = Text
-					Label.Size = UDim2.new(1, -10, 0, Label.TextBounds.Y)
-				end
-				return LabelInit
-			end
+    function LabelInit:UpdateText(Text)
+        if not Label or not Label.Parent then return end
+        
+        Label.Text = Text or ""
+        
+        -- Safer way to resize (avoid TextBounds when possible)
+        task.defer(function()
+            if Label and Label.Parent then
+                Label.Size = UDim2.new(1, -10, 0, Label.TextBounds.Y + 2)
+            end
+        end)
+    end
+    
+    -- Initial size
+    task.defer(function()
+        if Label and Label.Parent then
+            Label.Size = UDim2.new(1, -10, 0, Label.TextBounds.Y + 2)
+        end
+    end)
+
+    return LabelInit
+end
 
 			function SectionInit:CreateButton(Name, Callback)
 				local ButtonInit = {}
