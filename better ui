@@ -411,35 +411,23 @@ function Library:CreateWindow(Config, Parent)
 				return Section.Container
 			end
 
-						function SectionInit:CreateLabel(Name)
+							function SectionInit:CreateLabel(Name)
 				local LabelInit = {}
 				local Label = Folder.Label:Clone()
 				Label.Name = Name .. " L"
 				Label.Parent = Section.Container
 				Label.Text = Name
 				Label.TextWrapped = true
+				Label.AutomaticSize = Enum.AutomaticSize.Y   -- Best solution
 				Label.Size = UDim2.new(1, -10, 0, 0)
 
 				RegisterText(Label, "TextColor3", false)
 
 				function LabelInit:UpdateText(Text)
 					if not Label or not Label.Parent then return end
-
+					
 					Label.Text = tostring(Text or "—")
-
-					-- Resize safely
-					task.defer(function()
-						if Label and Label.Parent then
-							local height = 24  -- fallback
-							local success, tb = pcall(function()
-								return Label.TextBounds.Y
-							end)
-							if success and tb then
-								height = tb + 6
-							end
-							Label.Size = UDim2.new(1, -10, 0, height)
-						end
-					end)
+					-- No TextBounds needed - AutomaticSize handles resizing
 				end
 
 				-- Initial update
