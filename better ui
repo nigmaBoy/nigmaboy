@@ -111,12 +111,6 @@ function Library:CreateWindow(Config, Parent)
 	-- Dimmed text ratio: inputs/secondary text will be this factor of main text brightness
 	local DimTextFactor = 0.55
 
-	--[[
-	if syn and syn.protect_gui then
-		syn.protect_gui(Screen)
-	end
-	]]
-
 	Screen.Name = HttpService:GenerateGUID(false)
 	Screen.Parent = Parent
 	Topbar.WindowName.Text = Config.WindowName
@@ -189,14 +183,12 @@ function Library:CreateWindow(Config, Parent)
 	local function ChangeColor(Color)
 		Config.Color = Color
 		for i, v in pairs(Library.ColorTable) do
-			-- Only tween instances that are currently the accent color (not the dark bg ones)
 			if v.BackgroundColor3 ~= Color3.fromRGB(50, 50, 50) then
 				SmoothTween(v, 0.25, {BackgroundColor3 = Color})
 			end
 		end
 	end
 
-	-- Apply a new background color across the entire window, keeping edge darker
 	local function ChangeBgColor(Color)
 		CurrentBgColor = Color
 		local EdgeColor = DarkenColor(Color, 0.55)
@@ -206,16 +198,12 @@ function Library:CreateWindow(Config, Parent)
 		SmoothTween(Holder, 0.25, {BackgroundColor3 = HolderColor})
 		SmoothTween(EdgeStroke, 0.25, {Color = EdgeColor})
 
-		-- Shadow/glow: keep it black but adjust transparency based on how dark the bg is.
-		-- Darker bg = more transparent shadow so it doesn't become a thick black blob.
 		local _, _, BgV = Color:ToHSV()
-		-- BgV near 0 = very dark bg, shadow nearly invisible. BgV near 1 = bright bg, shadow more visible.
 		local ShadowTransparency = 1 - (BgV * 0.55)
 		for _, shadow in pairs(ShadowColorTable) do
 			SmoothTween(shadow, 0.25, {ImageColor3 = Color3.fromRGB(0, 0, 0), ImageTransparency = ShadowTransparency})
 		end
 
-		-- Section containers follow bg with a slight offset
 		for _, data in pairs(SectionColorTable) do
 			if data.SectionFrame then
 				SmoothTween(data.SectionFrame, 0.25, {BackgroundColor3 = DarkenColor(Color, 0.78)})
@@ -225,7 +213,6 @@ function Library:CreateWindow(Config, Parent)
 			end
 		end
 
-		-- Element-level bg frames (dropdowns, etc.) follow with their own darken factor
 		for _, data in pairs(BgFrameTable) do
 			if data.Frame and data.Frame.Parent then
 				SmoothTween(data.Frame, 0.25, {BackgroundColor3 = DarkenColor(Color, data.DarkenFactor)})
@@ -233,7 +220,6 @@ function Library:CreateWindow(Config, Parent)
 		end
 	end
 
-	-- Apply new text color across all registered text objects, preserving dim ratio
 	local function ChangeTextColor(Color)
 		CurrentTextColor = Color
 		local DimColor = DarkenColor(Color, DimTextFactor)
@@ -249,10 +235,8 @@ function Library:CreateWindow(Config, Parent)
 		end
 	end
 
-	-- Register a text object so it gets updated when text color changes
 	local function RegisterText(Object, Property, IsDim)
 		table.insert(TextColorTable, {Object = Object, Property = Property or "TextColor3", IsDim = IsDim or false})
-		-- Apply current color immediately
 		if IsDim then
 			Object[Property or "TextColor3"] = DarkenColor(CurrentTextColor, DimTextFactor)
 		else
@@ -260,8 +244,6 @@ function Library:CreateWindow(Config, Parent)
 		end
 	end
 
-	-- Register a section's frames for bg color tracking
-	-- SectionFrame = the outer Section frame, ContainerBg = Section.Container
 	local function RegisterSection(SectionFrame, ContainerBg)
 		table.insert(SectionColorTable, {SectionFrame = SectionFrame, ContainerBg = ContainerBg})
 	end
@@ -302,7 +284,6 @@ function Library:CreateWindow(Config, Parent)
 		Holder.TileSize = UDim2.new(Scale, 0, Scale, 0)
 	end
 
-	-- Store the connection so we can disconnect it on Unload
 	local ToolTipConnection = RunService.RenderStepped:Connect(function()
 		if Library.Toggle then
 			local ToolTip = Screen:FindFirstChild("ToolTip")
@@ -312,7 +293,6 @@ function Library:CreateWindow(Config, Parent)
 		end
 	end)
 
-	-- Unload: destroys the entire UI and cleans up
 	function WindowInit:Unload()
 		if ToolTipConnection then
 			ToolTipConnection:Disconnect()
@@ -337,7 +317,6 @@ function Library:CreateWindow(Config, Parent)
 		TabButton.Title.Text = Name
 		TabButton.BackgroundColor3 = Config.Color
 
-		-- Register tab button title text
 		RegisterText(TabButton.Title, "TextColor3", false)
 
 		table.insert(Library.ColorTable, TabButton)
@@ -396,10 +375,8 @@ function Library:CreateWindow(Config, Parent)
 
 			Section.Title.Text = Name
 			Section.Title.Size = UDim2.new(0, Section.Title.TextBounds.X + 10, 0, 2)
-			-- Hide the background bar behind the section title text
 			Section.Title.BackgroundTransparency = 1
 
-			-- Register section title label text and both frames for bg color tracking
 			RegisterText(Section.Title, "TextColor3", false)
 			RegisterSection(Section, Section.Container)
 
@@ -411,23 +388,29 @@ function Library:CreateWindow(Config, Parent)
 				return Section.Container
 			end
 
-							function SectionInit:CreateLabel(Name)
+			function SectionInit:CreateLabel(Name)
 				local LabelInit = {}
 				local Label = Folder.Label:Clone()
 				Label.Name = Name .. " L"
 				Label.Parent = Section.Container
 				Label.Text = Name
 				Label.TextWrapped = true
-				Label.AutomaticSize = Enum.AutomaticSize.Y   -- Best solution
-				Label.Size = UDim2.new(1, -10, 0, 0)
+				
+				-- BUG FIX: Removed AutomaticSize because it triggers a capability error on some executors
+				Label.Size = UDim2.new(1, -10, 0, Label.TextBounds.Y)
 
 				RegisterText(Label, "TextColor3", false)
+
+				-- Update size smoothly based on TextBounds whenever it calculates wrapped dimensions
+				Label:GetPropertyChangedSignal("TextBounds"):Connect(function()
+					Label.Size = UDim2.new(1, -10, 0, Label.TextBounds.Y)
+				end)
 
 				function LabelInit:UpdateText(Text)
 					if not Label or not Label.Parent then return end
 					
 					Label.Text = tostring(Text or "—")
-					-- No TextBounds needed - AutomaticSize handles resizing
+					Label.Size = UDim2.new(1, -10, 0, Label.TextBounds.Y)
 				end
 
 				-- Initial update
@@ -449,21 +432,10 @@ function Library:CreateWindow(Config, Parent)
 
 				RegisterText(Button.Title, "TextColor3", false)
 
-				Button.MouseButton1Down:Connect(function()
-					SmoothTween(Button, 0.1, {BackgroundColor3 = Config.Color})
-				end)
-
-				Button.MouseButton1Up:Connect(function()
-					SmoothTween(Button, 0.15, {BackgroundColor3 = Color3.fromRGB(50, 50, 50)})
-				end)
-
-				Button.MouseLeave:Connect(function()
-					SmoothTween(Button, 0.15, {BackgroundColor3 = Color3.fromRGB(50, 50, 50)})
-				end)
-
-				Button.MouseButton1Click:Connect(function()
-					Callback()
-				end)
+				Button.MouseButton1Down:Connect(function() SmoothTween(Button, 0.1, {BackgroundColor3 = Config.Color}) end)
+				Button.MouseButton1Up:Connect(function() SmoothTween(Button, 0.15, {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}) end)
+				Button.MouseLeave:Connect(function() SmoothTween(Button, 0.15, {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}) end)
+				Button.MouseButton1Click:Connect(function() Callback() end)
 
 				function ButtonInit:AddToolTip(Name)
 					if tostring(Name):gsub(" ", "") ~= "" then
@@ -472,9 +444,7 @@ function Library:CreateWindow(Config, Parent)
 							Screen.ToolTip.Size = UDim2.new(0, Screen.ToolTip.TextBounds.X + 5, 0, Screen.ToolTip.TextBounds.Y + 5)
 							Screen.ToolTip.Visible = true
 						end)
-						Button.MouseLeave:Connect(function()
-							Screen.ToolTip.Visible = false
-						end)
+						Button.MouseLeave:Connect(function() Screen.ToolTip.Visible = false end)
 					end
 				end
 
@@ -491,7 +461,6 @@ function Library:CreateWindow(Config, Parent)
 				TextBox.Title.Size = UDim2.new(1, 0, 0, TextBox.Title.TextBounds.Y + 5)
 				TextBox.Size = UDim2.new(1, -10, 0, TextBox.Title.TextBounds.Y + 25)
 
-				-- Title = normal text, input text = dimmed (preserving ratio)
 				RegisterText(TextBox.Title, "TextColor3", false)
 				RegisterText(TextBox.Background.Input, "TextColor3", true)
 				RegisterText(TextBox.Background.Input, "PlaceholderColor3", true)
@@ -516,9 +485,7 @@ function Library:CreateWindow(Config, Parent)
 							Screen.ToolTip.Size = UDim2.new(0, Screen.ToolTip.TextBounds.X + 5, 0, Screen.ToolTip.TextBounds.Y + 5)
 							Screen.ToolTip.Visible = true
 						end)
-						TextBox.MouseLeave:Connect(function()
-							Screen.ToolTip.Visible = false
-						end)
+						TextBox.MouseLeave:Connect(function() Screen.ToolTip.Visible = false end)
 					end
 				end
 
@@ -561,23 +528,17 @@ function Library:CreateWindow(Config, Parent)
 							Screen.ToolTip.Size = UDim2.new(0, Screen.ToolTip.TextBounds.X + 5, 0, Screen.ToolTip.TextBounds.Y + 5)
 							Screen.ToolTip.Visible = true
 						end)
-						Toggle.MouseLeave:Connect(function()
-							Screen.ToolTip.Visible = false
-						end)
+						Toggle.MouseLeave:Connect(function() Screen.ToolTip.Visible = false end)
 					end
 				end
 
 				if Default == nil then
-					function ToggleInit:SetState(State)
-						SetState(State)
-					end
+					function ToggleInit:SetState(State) SetState(State) end
 				else
 					SetState(DefaultLocal)
 				end
 
-				function ToggleInit:GetState()
-					return ToggleState
-				end
+				function ToggleInit:GetState() return ToggleState end
 
 				function ToggleInit:CreateKeybind(Bind, Callback)
 					local KeybindInit = {}
@@ -618,9 +579,7 @@ function Library:CreateWindow(Config, Parent)
 							if Key == Selected then
 								ToggleState = not ToggleState
 								SetState(ToggleState)
-								if Callback then
-									Callback(Key)
-								end
+								if Callback then Callback(Key) end
 							end
 						end
 					end)
@@ -630,9 +589,7 @@ function Library:CreateWindow(Config, Parent)
 						Selected = Key
 					end
 
-					function KeybindInit:GetBind()
-						return Selected
-					end
+					function KeybindInit:GetBind() return Selected end
 
 					return KeybindInit
 				end
@@ -711,15 +668,11 @@ function Library:CreateWindow(Config, Parent)
 				end)
 
 				UserInputService.InputBegan:Connect(function(Input)
-					if Input.KeyCode == Enum.KeyCode.LeftControl then
-						Slider.Value.ZIndex = 4
-					end
+					if Input.KeyCode == Enum.KeyCode.LeftControl then Slider.Value.ZIndex = 4 end
 				end)
 
 				UserInputService.InputEnded:Connect(function(Input)
-					if Input.KeyCode == Enum.KeyCode.LeftControl then
-						Slider.Value.ZIndex = 3
-					end
+					if Input.KeyCode == Enum.KeyCode.LeftControl then Slider.Value.ZIndex = 3 end
 				end)
 
 				UserInputService.InputChanged:Connect(function(Input)
@@ -735,9 +688,7 @@ function Library:CreateWindow(Config, Parent)
 							Screen.ToolTip.Size = UDim2.new(0, Screen.ToolTip.TextBounds.X + 5, 0, Screen.ToolTip.TextBounds.Y + 5)
 							Screen.ToolTip.Visible = true
 						end)
-						Slider.MouseLeave:Connect(function()
-							Screen.ToolTip.Visible = false
-						end)
+						Slider.MouseLeave:Connect(function() Screen.ToolTip.Visible = false end)
 					end
 				end
 
@@ -752,9 +703,7 @@ function Library:CreateWindow(Config, Parent)
 					SetValue(DefaultLocal)
 				end
 
-				function SliderInit:GetValue()
-					return GlobalSliderValue
-				end
+				function SliderInit:GetValue() return GlobalSliderValue end
 
 				return SliderInit
 			end
@@ -771,7 +720,6 @@ function Library:CreateWindow(Config, Parent)
 				Dropdown.Container.Position = UDim2.new(0, 0, 0, Dropdown.Title.TextBounds.Y + 5)
 				Dropdown.Size = UDim2.new(1, -10, 0, Dropdown.Title.TextBounds.Y + 25)
 
-				-- Register the dropdown outer frame and its container so they follow bg color changes
 				RegisterBgFrame(Dropdown, 0.82)
 				RegisterBgFrame(Dropdown.Container, 0.70)
 
@@ -859,9 +807,7 @@ function Library:CreateWindow(Config, Parent)
 							Screen.ToolTip.Size = UDim2.new(0, Screen.ToolTip.TextBounds.X + 5, 0, Screen.ToolTip.TextBounds.Y + 5)
 							Screen.ToolTip.Visible = true
 						end)
-						Dropdown.MouseLeave:Connect(function()
-							Screen.ToolTip.Visible = false
-						end)
+						Dropdown.MouseLeave:Connect(function() Screen.ToolTip.Visible = false end)
 					end
 				end
 
@@ -955,7 +901,6 @@ function Library:CreateWindow(Config, Parent)
 							if type(NewValues) == "table" then
 								local NeedUpdate = false
 								
-								-- Check if tables are different
 								if #NewValues ~= #LastValues then
 									NeedUpdate = true
 								else
@@ -979,12 +924,8 @@ function Library:CreateWindow(Config, Parent)
 					end)
 				end
 
-				if InitialValue then
-					DropdownInit:SetOption(InitialValue)
-				end
-				if MultiSelect and not InitialValue then
-					UpdateDisplayText()
-				end
+				if InitialValue then DropdownInit:SetOption(InitialValue) end
+				if MultiSelect and not InitialValue then UpdateDisplayText() end
 
 				return DropdownInit
 			end
@@ -1004,22 +945,13 @@ function Library:CreateWindow(Config, Parent)
 
 				RegisterText(Colorpicker.Title, "TextColor3", false)
 
-				local ColorTable = {
-					Hue = 1,
-					Saturation = 0,
-					Value = 0
-				}
+				local ColorTable = {Hue = 1, Saturation = 0, Value = 0}
 				local ColorRender = nil
 				local HueRender = nil
 				local ColorpickerRender = nil
-				-- True while dragging inside the palette OR while the RGB input is focused.
-				-- Prevents the outside-click handler from closing the picker in both cases.
 				local IsDraggingInside = false
 				local IsInputFocused = false
 
-				-- GetMouseLocation returns Y from the very top of the screen.
-				-- AbsolutePosition Y starts below the CoreGui inset (topbar).
-				-- So to compare them we subtract GuiInset from the mouse, not from AbsPos.
 				local GuiInset = GuiService:GetGuiInset()
 
 				local function UpdateColor()
@@ -1038,19 +970,14 @@ function Library:CreateWindow(Config, Parent)
 
 				local function IsMouseOverGui(GuiObject)
 					local Mouse = UserInputService:GetMouseLocation()
-					-- Subtract inset from mouse so it's in the same space as AbsolutePosition
 					local MX = Mouse.X
 					local MY = Mouse.Y - GuiInset.Y
 					local AbsPos = GuiObject.AbsolutePosition
 					local AbsSize = GuiObject.AbsoluteSize
-					return MX >= AbsPos.X and MX <= AbsPos.X + AbsSize.X
-						and MY >= AbsPos.Y and MY <= AbsPos.Y + AbsSize.Y
+					return MX >= AbsPos.X and MX <= AbsPos.X + AbsSize.X and MY >= AbsPos.Y and MY <= AbsPos.Y + AbsSize.Y
 				end
 
-				-- Track when the RGB textbox is focused so we don't close on click
-				Pallete.Input.InputBox.Focused:Connect(function()
-					IsInputFocused = true
-				end)
+				Pallete.Input.InputBox.Focused:Connect(function() IsInputFocused = true end)
 				Pallete.Input.InputBox.FocusLost:Connect(function(Enter)
 					IsInputFocused = false
 					if Enter then
@@ -1071,16 +998,10 @@ function Library:CreateWindow(Config, Parent)
 					end
 				end)
 
-				-- Close when clicking outside. Guards: dragging inside, input focused, hovering palette, hovering the button.
 				UserInputService.InputBegan:Connect(function(Input)
 					if Input.UserInputType == Enum.UserInputType.MouseButton1 and Pallete.Visible then
 						task.defer(function()
-							if Pallete.Visible
-								and not IsDraggingInside
-								and not IsInputFocused
-								and not IsMouseOverGui(Pallete)
-								and not IsMouseOverGui(Colorpicker)
-							then
+							if Pallete.Visible and not IsDraggingInside and not IsInputFocused and not IsMouseOverGui(Pallete) and not IsMouseOverGui(Colorpicker) then
 								ClosePallete()
 							end
 						end)
@@ -1093,7 +1014,6 @@ function Library:CreateWindow(Config, Parent)
 						if ColorRender then ColorRender:Disconnect() end
 						ColorRender = RunService.RenderStepped:Connect(function()
 							local Mouse = UserInputService:GetMouseLocation()
-							-- Subtract inset from mouse to align with AbsolutePosition space
 							local MX = Mouse.X
 							local MY = Mouse.Y - GuiInset.Y
 							local ColorX = math.clamp(MX - Pallete.GradientPallete.AbsolutePosition.X, 0, Pallete.GradientPallete.AbsoluteSize.X) / Pallete.GradientPallete.AbsoluteSize.X
@@ -1139,11 +1059,7 @@ function Library:CreateWindow(Config, Parent)
 					Colorpicker.Color.BackgroundColor3 = Color3.fromHSV(Hue, Saturation, Value)
 					Pallete.GradientPallete.BackgroundColor3 = Color3.fromHSV(Hue, 1, 1)
 					Pallete.Input.InputBox.PlaceholderText = "RGB: " .. math.round(Colorpicker.Color.BackgroundColor3.R * 255) .. "," .. math.round(Colorpicker.Color.BackgroundColor3.G * 255) .. "," .. math.round(Colorpicker.Color.BackgroundColor3.B * 255)
-					ColorTable = {
-						Hue = Hue,
-						Saturation = Saturation,
-						Value = Value
-					}
+					ColorTable = {Hue = Hue, Saturation = Saturation, Value = Value}
 					Callback(Color)
 				end
 
@@ -1154,9 +1070,7 @@ function Library:CreateWindow(Config, Parent)
 							Screen.ToolTip.Size = UDim2.new(0, Screen.ToolTip.TextBounds.X + 5, 0, Screen.ToolTip.TextBounds.Y + 5)
 							Screen.ToolTip.Visible = true
 						end)
-						Colorpicker.MouseLeave:Connect(function()
-							Screen.ToolTip.Visible = false
-						end)
+						Colorpicker.MouseLeave:Connect(function() Screen.ToolTip.Visible = false end)
 					end
 				end
 
@@ -1168,38 +1082,20 @@ function Library:CreateWindow(Config, Parent)
 		return TabInit
 	end
 
-	-- [[ BUILT-IN SETTINGS TAB AUTO-BUILDER ]]
 	task.defer(function()
 		local SettingsTab = WindowInit:CreateTab("UI Settings")
 
-		-- ── LEFT SIDE ────────────────────────────────────────────────────────────
-
-		-- "Colors" section goes left
 		local ColorsSection = SettingsTab:CreateSection("Colors")
 
-		ColorsSection:CreateColorpicker("Theme Color", function(Color)
-			WindowInit:ChangeColor(Color)
-		end):UpdateColor(Config.Color or Color3.fromRGB(220, 50, 50))
-
-		ColorsSection:CreateColorpicker("Background Color", function(Color)
-			WindowInit:ChangeBgColor(Color)
-		end):UpdateColor(CurrentBgColor)
-
-		ColorsSection:CreateColorpicker("Text Color", function(Color)
-			WindowInit:ChangeTextColor(Color)
-		end):UpdateColor(CurrentTextColor)
-
-		ColorsSection:CreateColorpicker("Asset Tint", function(Color)
-			WindowInit:SetBackgroundColor(Color)
-		end):UpdateColor(Holder.ImageColor3)
+		ColorsSection:CreateColorpicker("Theme Color", function(Color) WindowInit:ChangeColor(Color) end):UpdateColor(Config.Color or Color3.fromRGB(220, 50, 50))
+		ColorsSection:CreateColorpicker("Background Color", function(Color) WindowInit:ChangeBgColor(Color) end):UpdateColor(CurrentBgColor)
+		ColorsSection:CreateColorpicker("Text Color", function(Color) WindowInit:ChangeTextColor(Color) end):UpdateColor(CurrentTextColor)
+		ColorsSection:CreateColorpicker("Asset Tint", function(Color) WindowInit:SetBackgroundColor(Color) end):UpdateColor(Holder.ImageColor3)
 
 		ColorsSection:CreateSlider("Asset Transparency", 0, 100, math.floor(Holder.ImageTransparency * 100), true, function(Value)
 			WindowInit:SetBackgroundTransparency(Value / 100)
 		end)
 
-		-- ── RIGHT SIDE ───────────────────────────────────────────────────────────
-
-		-- "Controls" section goes right — toggle keybind + unload + UI scale
 		local ControlsSection = SettingsTab:CreateSection("Controls")
 		local ControlsRawContainer = ControlsSection:GetContainer()
 
@@ -1207,13 +1103,11 @@ function Library:CreateWindow(Config, Parent)
 		local WaitingForToggleBind = false
 		local ToggleBindBlacklist = {"W","A","S","D","Slash","Tab","Backspace","Escape","Space","Delete","Unknown","Backquote"}
 
-		-- Build the keybind row from the Toggle template — matches the native keybind widget exactly
 		local ToggleTemplate = Folder.Toggle:Clone()
 		ToggleTemplate.Name = "UI Toggle Keybind T"
 		ToggleTemplate.Parent = ControlsRawContainer
 		ToggleTemplate.Title.Text = "Toggle UI"
 		ToggleTemplate.Size = UDim2.new(1, -10, 0, ToggleTemplate.Title.TextBounds.Y + 5)
-		-- Hide the toggle square, only show the keybind button
 		ToggleTemplate.Toggle.Visible = false
 		ToggleTemplate.Keybind.Visible = true
 		ToggleTemplate.Keybind.Text = "[ " .. CurrentToggleBind .. " ]"
@@ -1248,9 +1142,7 @@ function Library:CreateWindow(Config, Parent)
 			end
 		end)
 
-		ControlsSection:CreateButton("Unload UI", function()
-			WindowInit:Unload()
-		end):AddToolTip("Destroys the entire UI permanently")
+		ControlsSection:CreateButton("Unload UI", function() WindowInit:Unload() end):AddToolTip("Destroys the entire UI permanently")
 
 		ControlsSection:CreateTextBox("UI Scale", "50–150  (default: 100)", true, function(Value)
 			local num = tonumber(Value)
@@ -1259,8 +1151,6 @@ function Library:CreateWindow(Config, Parent)
 				MainScale.Scale = num / 100
 			end
 		end):AddToolTip("Type a number 50–150 to scale the UI window")
-
-		-- ── RIGHT SIDE — Asset Manager ────────────────────────────────────────────
 
 		local AssetSection = SettingsTab:CreateSection("Asset Manager")
 
