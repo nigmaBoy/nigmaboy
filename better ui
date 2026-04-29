@@ -137,7 +137,7 @@ function Library:CreateWindow(Config, Parent)
 			end
 		end
 	end
-local function ResetAll()
+	local function ResetAll()
 		for _, TabButton in pairs(TBContainer:GetChildren()) do
 			if TabButton:IsA("TextButton") then
 				TabButton.BackgroundTransparency = 1
@@ -282,9 +282,9 @@ local function ResetAll()
 		ChangeTextColor(Color)
 	end
 
-function WindowInit:SetBackground(ImageId)
-    Holder.Image = "rbxthumb://type=Asset&id=" .. ImageId .. "&w=420&h=420"
-end
+	function WindowInit:SetBackground(ImageId)
+		Holder.Image = "rbxthumb://type=Asset&id=" .. ImageId .. "&w=420&h=420"
+	end
 
 	function WindowInit:SetBackgroundColor(Color)
 		SmoothTween(Holder, 0.25, {ImageColor3 = Color})
@@ -302,25 +302,27 @@ end
 		Holder.TileSize = UDim2.new(Scale, 0, Scale, 0)
 	end
 
-	-- Unload: destroys the entire UI and cleans up
-function WindowInit:Unload()
-    ToolTipConnection:Disconnect()
-    Screen:Destroy()
-    Library.Toggle = false
-    Library.TabCount = 0
-    Library.FirstTab = nil
-    Library.ColorTable = {}
-end
+	-- Store the connection so we can disconnect it on Unload
+	local ToolTipConnection = RunService.RenderStepped:Connect(function()
+		if Library.Toggle then
+			local ToolTip = Screen:FindFirstChild("ToolTip")
+			if ToolTip and Screen.Parent then
+				ToolTip.Position = UDim2.new(0, UserInputService:GetMouseLocation().X + 10, 0, UserInputService:GetMouseLocation().Y - 5)
+			end
+		end
+	end)
 
--- Store the connection so we can disconnect it on Unload
-local ToolTipConnection = RunService.RenderStepped:Connect(function()
-    if Library.Toggle then
-        local ToolTip = Screen:FindFirstChild("ToolTip")
-        if ToolTip and Screen.Parent then
-            ToolTip.Position = UDim2.new(0, UserInputService:GetMouseLocation().X + 10, 0, UserInputService:GetMouseLocation().Y - 5)
-        end
-    end
-end)
+	-- Unload: destroys the entire UI and cleans up
+	function WindowInit:Unload()
+		if ToolTipConnection then
+			ToolTipConnection:Disconnect()
+		end
+		Screen:Destroy()
+		Library.Toggle = false
+		Library.TabCount = 0
+		Library.FirstTab = nil
+		Library.ColorTable = {}
+	end
 
 	function WindowInit:CreateTab(Name)
 		local TabInit = {}
@@ -858,57 +860,55 @@ end)
 				end
 
 				function DropdownInit:SetOption(Name)
-	if MultiSelect then
-		if type(Name) == "table" then
-			SelectedOptions = {}
-			for _, val in pairs(Name) do table.insert(SelectedOptions, val) end
-		else
-			if not table.find(SelectedOptions, Name) then table.insert(SelectedOptions, Name) end
-		end
-		for _, Option in pairs(Dropdown.Container.Holder.Container:GetChildren()) do
-			if Option:IsA("TextButton") then
-				if table.find(SelectedOptions, Option.Name) then
-					Option.BackgroundTransparency = 0
-				else
-					Option.BackgroundTransparency = 1
+					if MultiSelect then
+						if type(Name) == "table" then
+							SelectedOptions = {}
+							for _, val in pairs(Name) do table.insert(SelectedOptions, val) end
+						else
+							if not table.find(SelectedOptions, Name) then table.insert(SelectedOptions, Name) end
+						end
+						for _, Option in pairs(Dropdown.Container.Holder.Container:GetChildren()) do
+							if Option:IsA("TextButton") then
+								if table.find(SelectedOptions, Option.Name) then
+									Option.BackgroundTransparency = 0
+								else
+									Option.BackgroundTransparency = 1
+								end
+							end
+						end
+						UpdateDisplayText()
+						Callback(SelectedOptions)
+					else
+						for _, Option in pairs(Dropdown.Container.Holder.Container:GetChildren()) do
+							if Option:IsA("TextButton") and Option.Name == Name then
+								Dropdown.Container.Value.Text = Option.Name
+								Callback(Name)
+							end
+						end
+					end
 				end
-			end
-		end
-		UpdateDisplayText()
-		Callback(SelectedOptions)
-	else
-		for _, Option in pairs(Dropdown.Container.Holder.Container:GetChildren()) do
-            -- FIX: Changed string.find to Option.Name == Name
-			if Option:IsA("TextButton") and Option.Name == Name then
-				Dropdown.Container.Value.Text = Option.Name
-				Callback(Name)
-			end
-		end
-	end
-end
 
 				function DropdownInit:RemoveOption(Name)
-	for _, Option in pairs(Dropdown.Container.Holder.Container:GetChildren()) do
-        -- FIX: Changed string.find to Option.Name == Name
-		if Option:IsA("TextButton") and Option.Name == Name then
-			Option:Destroy()
-		end
-	end
-	if MultiSelect then
-		local index = table.find(SelectedOptions, Name)
-		if index then
-			table.remove(SelectedOptions, index)
-			UpdateDisplayText()
-			Callback(SelectedOptions)
-		end
-	end
-	Dropdown.Container.Holder.Size = UDim2.new(1, -5, 0, Dropdown.Container.Holder.Container.ListLayout.AbsoluteContentSize.Y)
-	if DropdownToggle then
-		Dropdown.Size = UDim2.new(1, -10, 0, Dropdown.Container.Holder.Container.ListLayout.AbsoluteContentSize.Y + Dropdown.Title.TextBounds.Y + 30)
-	else
-		Dropdown.Size = UDim2.new(1, -10, 0, Dropdown.Title.TextBounds.Y + 25)
-	end
-end
+					for _, Option in pairs(Dropdown.Container.Holder.Container:GetChildren()) do
+						if Option:IsA("TextButton") and Option.Name == Name then
+							Option:Destroy()
+						end
+					end
+					if MultiSelect then
+						local index = table.find(SelectedOptions, Name)
+						if index then
+							table.remove(SelectedOptions, index)
+							UpdateDisplayText()
+							Callback(SelectedOptions)
+						end
+					end
+					Dropdown.Container.Holder.Size = UDim2.new(1, -5, 0, Dropdown.Container.Holder.Container.ListLayout.AbsoluteContentSize.Y)
+					if DropdownToggle then
+						Dropdown.Size = UDim2.new(1, -10, 0, Dropdown.Container.Holder.Container.ListLayout.AbsoluteContentSize.Y + Dropdown.Title.TextBounds.Y + 30)
+					else
+						Dropdown.Size = UDim2.new(1, -10, 0, Dropdown.Title.TextBounds.Y + 25)
+					end
+				end
 
 				function DropdownInit:AddOption(OptionName)
 					AddOptionLogic(OptionName)
@@ -929,6 +929,44 @@ end
 					Dropdown.Size = UDim2.new(1, -10, 0, Dropdown.Title.TextBounds.Y + 25)
 					DropdownToggle = false
 					Dropdown.Container.Holder.Visible = false
+				end
+
+				function DropdownInit:SetAutoUpdate(GetValueFunction, UpdateIntervalSeconds)
+					local UpdateInterval = UpdateIntervalSeconds or 0.5
+					local LastUpdate = 0
+					local LastValues = {}
+
+					RunService.RenderStepped:Connect(function()
+						local CurrentTime = tick()
+						if CurrentTime - LastUpdate >= UpdateInterval then
+							LastUpdate = CurrentTime
+							local NewValues = GetValueFunction()
+							
+							if type(NewValues) == "table" then
+								local NeedUpdate = false
+								
+								-- Check if tables are different
+								if #NewValues ~= #LastValues then
+									NeedUpdate = true
+								else
+									for i, val in ipairs(NewValues) do
+										if LastValues[i] ~= val then
+											NeedUpdate = true
+											break
+										end
+									end
+								end
+								
+								if NeedUpdate then
+									DropdownInit:ClearOptions()
+									for _, val in ipairs(NewValues) do
+										DropdownInit:AddOption(val)
+									end
+									LastValues = NewValues
+								end
+							end
+						end
+					end)
 				end
 
 				if InitialValue then
@@ -1231,7 +1269,6 @@ end
 			["Purple Sky"]  = "98366238528477",
 			["My Little Pony"]  = "226301530"
 		}
-
 
 		local savedAssets = {}
 		local folderName = "LibraryAssets"
